@@ -81,7 +81,14 @@ public class MMLNoteConverter {
 			length -= tpqn * 8;
 		}
 		sb.append(notes[length].getText());
-		return sb.toString();
+		
+		String note = sb.toString();
+		if(note.contains("^")) {
+			String name = note.split("\\d+")[0];
+			note = note.replaceAll("[a-zA-Z\\\\+-]", "");
+			note = name.concat(note);
+		}
+		return note;
 	}
 
 	/**
@@ -108,7 +115,14 @@ public class MMLNoteConverter {
 			length -= tpqn * 8;
 		}
 		sb.append(notes[length].getText(key));
-		return sb.toString();
+		
+		String note = sb.toString();
+		if(note.contains("^")) {
+			String name = note.split("\\d+")[0];
+			note = note.replaceAll("[a-zA-Z\\\\+-]", "");
+			note = name.concat(note);
+		}
+		return note;
 	}
 
 	/**

@@ -101,6 +101,11 @@ public class Midi2MML {
 	 * true if replace triple single notes to triplet.
 	 */
 	private boolean useTriplet = false;
+	
+	/**
+	 * true if notes/octave changes are spaced apart
+	 */
+	private boolean putSpaces = false;
 
 	/**
 	 * true if write debug informations to stdout.
@@ -162,6 +167,7 @@ public class Midi2MML {
 		inputResolution = obj.inputResolution;
 		targetResolution = obj.targetResolution;
 		quantizePrecision = obj.quantizePrecision;
+		putSpaces = obj.putSpaces;
 	}
 
 	/**
@@ -236,6 +242,14 @@ public class Midi2MML {
 
 	public void setInputResolution(int inputResolution) {
 		this.inputResolution = inputResolution;
+	}
+	
+	public boolean getPutSpaces() {
+		return putSpaces;
+	}
+	
+	public void setPutSpaces(boolean putSpaces) {
+		this.putSpaces = putSpaces;
 	}
 
 	/**
@@ -523,6 +537,10 @@ public class Midi2MML {
 								mmlTrack.setOctave(noteOctave);
 								mmlTrack.setFirstNote(false);
 								mmlEvents.add(new MMLEvent(mmlSymbol.getOctave(), new String[] { String.format("%d", noteOctave) }));
+								
+								if(putSpaces) {
+									mmlEvents.add(new MMLEvent(" "));
+								}
 							}
 
 							// remember new note
@@ -583,6 +601,10 @@ public class Midi2MML {
 							{
 								totalLength += length;
 								mmlTrack.add(new MMLEvent(noteConv.getNote(length, mmlLastNoteNumber)));
+								
+								if(putSpaces) {
+									mmlTrack.add(new MMLEvent(" "));
+								}
 
 								int lastMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick, timeSignatures, seq.getResolution());
 								int currentMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick + totalLength, timeSignatures, seq.getResolution());
@@ -597,15 +619,26 @@ public class Midi2MML {
 						{
 							int mmlOctave = mmlTrack.getOctave();
 							int noteOctave = mmlLastNoteNumber / 12;
+							
 							while (mmlOctave < noteOctave)
 							{
 								mmlTrack.add(new MMLEvent(!octaveReversed ? mmlSymbol.getOctaveUp() : mmlSymbol.getOctaveDown()));
 								mmlOctave++;
+								if(mmlOctave == noteOctave) {
+									if(putSpaces) {
+										mmlTrack.add(new MMLEvent(" "));
+									}
+								}
 							}
 							while (mmlOctave > noteOctave)
 							{
 								mmlTrack.add(new MMLEvent(!octaveReversed ? mmlSymbol.getOctaveDown() : mmlSymbol.getOctaveUp()));
 								mmlOctave--;
+								if(mmlOctave == noteOctave) {
+									if(putSpaces) {
+										mmlTrack.add(new MMLEvent(" "));
+									}
+								}
 							}
 							mmlTrack.setOctave(noteOctave);
 
@@ -613,6 +646,10 @@ public class Midi2MML {
 							if (mmlKeepCurrentNote)
 							{
 								mmlTrack.add(new MMLEvent(mmlSymbol.getTie()));
+							}
+							
+							if(putSpaces) {
+								mmlTrack.add(new MMLEvent(" "));
 							}
 
 							int lastMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick, timeSignatures, seq.getResolution());
@@ -866,7 +903,13 @@ public class Midi2MML {
 
 				int usLenOfQN = ((data[0] & 0xff) << 16) | ((data[1] & 0xff) << 8) | (data[2] & 0xff);
 				double bpm = 60000000.0 / usLenOfQN;
+				bpm *= 256.0/625.0; // BPM to SNES tempo conversion
 				mmlEvents.add(new MMLEvent(mmlSymbol.getTempo(), new String[] { String.format("%.0f", bpm) }));
+				
+				if(putSpaces) {
+					mmlEvents.add(new MMLEvent(" "));
+				}
+				
 				break;
 			}
 		}

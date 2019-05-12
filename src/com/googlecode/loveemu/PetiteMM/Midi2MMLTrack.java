@@ -262,6 +262,7 @@ class Midi2MMLTrack {
 			String mmlString = mmlBuffer.toString();
 			if (useTriplet)
 				mmlString = convertToTriplet(mmlString);
+			
 			writer.write(mmlString);
 
 			if (!mmlString.endsWith(System.getProperty("line.separator")))

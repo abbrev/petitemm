@@ -54,6 +54,7 @@ public class PetiteMM {
 				"--no-quantize", "", "Prevent adjusting note length. Result will be more accurate but more complicated.",
 				"--octave-reverse", "", "Swap the octave symbol.",
 				"--use-triplet", "", "Use triplet syntax if possible. (really not so smart)",
+				"--use-spaces", "", "Put a space after each note/octave change."
 		};
 
 		int argi = 0;
@@ -119,6 +120,9 @@ public class PetiteMM {
 			else if (args[argi].equals("--use-triplet"))
 			{
 				opt.setTripletPreference(true);
+			}
+			else if (args[argi].equals("--put-spaces")) {
+				opt.setPutSpaces(true);
 			}
 			else
 			{
