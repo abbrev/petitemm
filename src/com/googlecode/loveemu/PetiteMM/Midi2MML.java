@@ -20,27 +20,27 @@ public class Midi2MML {
 	/**
 	 * Name of the tool.
 	 */
-	public final static String NAME = "PetiteMM";
+	public static final String NAME = "PetiteMM";
 	
 	/**
 	 * Version of the tool.
 	 */
-	public final static String VERSION = "2013-09-02";
+	public static final String VERSION = "2013-09-02";
 	
 	/**
 	 * Author of the tool.
 	 */
-	public final static String AUTHOR = "loveemu, gocha";
+	public static final String AUTHOR = "loveemu, gocha";
 	
 	/**
 	 * Website of the tool.
 	 */
-	public final static String WEBSITE = "http://loveemu.googlecode.com/";
+	public static final String WEBSITE = "http://loveemu.googlecode.com/";
 	
 	/**
 	 * Constant for using the input resolution.
 	 */
-	public final static int RESOLUTION_AS_IS = 0;
+	public static final int RESOLUTION_AS_IS = 0;
 	
 	/**
 	 * Constant for the maximum precision.
@@ -50,17 +50,19 @@ public class Midi2MML {
 	/**
 	 * Default ticks per quarter note of target MML.
 	 */
-	public final static int DEFAULT_RESOLUTION = 48;
+	public static final int DEFAULT_RESOLUTION = 48;
 	
 	/**
 	 * Default quantize precision value.
 	 */
-	public final static int DEFAULT_QUANTIZE_PRECISION = 32;
+	public static final int DEFAULT_QUANTIZE_PRECISION = 32;
 	
 	/**
 	 * Default maximum dot count for dotted note.
 	 */
-	public final static int DEFAULT_MAX_DOT_COUNT = -1;
+	public static final int DEFAULT_MAX_DOT_COUNT = -1;
+	
+	public static final String LINE_SEPARATOR = System.getProperty("line.separator");
 	
 	/**
 	 * MML symbol set.
@@ -110,7 +112,11 @@ public class Midi2MML {
 	/**
 	 * true if write debug informations to stdout.
 	 */
-	final static private boolean debugDump = false;
+	private static final boolean debugDump = false;
+	
+	private List<String> instruments = new ArrayList<>();
+	private List<String> volumes = new ArrayList<>();
+	private List<String> pannings = new ArrayList<>();
 	
 	/**
 	 * Construct a new MIDI to MML converter.
@@ -323,7 +329,7 @@ public class Midi2MML {
 		// the converter assumes that all events in a track are for a single channel,
 		// when the input file is SMF format 0 or something like that, it requires
 		// preprocessing.
-		seq = MidiUtil.SeparateMixedChannel(seq);
+		seq = MidiUtil.separateMixedChannel(seq);
 		// adjust resolution for MML conversion
 		if(targetResolution != RESOLUTION_AS_IS)
 			seq = MidiUtil.changeResolution(seq, targetResolution);
@@ -401,7 +407,7 @@ public class Midi2MML {
 										byteArrayToString(event.getMessage().getMessage()));
 					
 					// branch by event type for more detailed access
-					List<MMLEvent> mmlEvents = new ArrayList<MMLEvent>();
+					List<MMLEvent> mmlEvents = new ArrayList<>();
 					long mmlLastTick = mmlTrack.getTick();
 					int mmlLastNoteNumber = mmlTrack.getNoteNumber();
 					boolean mmlKeepCurrentNote = (mmlLastNoteNumber != MMLNoteConverter.KEY_REST);
@@ -429,7 +435,7 @@ public class Midi2MML {
 									// minLength/nearPow2 is almost always in [0.5,1.0]
 									// (almost, because nearPow2 may have slight error at a very short note)
 									// nearPow2 can be greater than maxLength
-									long nearPow2 = seq.getResolution() * 4;
+									long nearPow2 = (long) seq.getResolution() * 4;
 									while(nearPow2 / 2 >= minLength)
 										nearPow2 /= 2;
 									
@@ -440,7 +446,7 @@ public class Midi2MML {
 										if(nearPow2 % (1 << dot) != 0)
 											break;
 										
-										dottedNoteRate += Math.pow(0.5, dot + 1);
+										dottedNoteRate += Math.pow(0.5, dot + 1.0);
 										rateCandidates.add(dottedNoteRate); // dotted note (0.75, 0.875...)
 									}
 									if(nearPow2 * 2 % 3 == 0)
@@ -534,7 +540,7 @@ public class Midi2MML {
 							}
 						} else if(message.getCommand() == ShortMessage.NOTE_ON) {
 							int noteNumber = message.getData1();
-							int noteOctave = noteNumber / 12;
+							int noteOctave = noteNumber / 12 - 2;
 							
 							// write some initialization for the first note
 							if(mmlTrack.isFirstNote()) {
@@ -606,13 +612,13 @@ public class Midi2MML {
 								int currentMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick + totalLength,
 										timeSignatures, seq.getResolution());
 								if(currentMeasure != lastMeasure) {
-									mmlTrack.add(new MMLEvent(System.getProperty("line.separator")));
+									mmlTrack.add(new MMLEvent(LINE_SEPARATOR));
 									mmlTrack.setMeasure(currentMeasure);
 								}
 							}
 						} else {
 							int mmlOctave = mmlTrack.getOctave();
-							int noteOctave = mmlLastNoteNumber / 12;
+							int noteOctave = mmlLastNoteNumber / 12 - 2;
 							
 							while(mmlOctave < noteOctave) {
 								mmlTrack.add(new MMLEvent(
@@ -647,7 +653,7 @@ public class Midi2MML {
 							int currentMeasure = MidiTimeSignature.getMeasureByTick(mmlTrack.getTick(), timeSignatures,
 									seq.getResolution());
 							if(currentMeasure != lastMeasure) {
-								mmlTrack.add(new MMLEvent(System.getProperty("line.separator")));
+								mmlTrack.add(new MMLEvent(LINE_SEPARATOR));
 								mmlTrack.setMeasure(currentMeasure);
 							}
 						}
@@ -678,12 +684,21 @@ public class Midi2MML {
 				if(firstTrackWrite)
 					firstTrackWrite = false;
 				else {
+					writer.write(LINE_SEPARATOR);
 					writer.write(mmlSymbol.getTrackEnd());
-					writer.write(System.getProperty("line.separator"));
+					writer.write(LINE_SEPARATOR);
 				}
 				mmlTrack.writeMML(writer);
 			}
 		}
+		
+		// Write macros
+		writer.write(LINE_SEPARATOR + "; Macros" + LINE_SEPARATOR);
+		int i = 30;
+		for(String instr : instruments) {
+			writer.write("\"I" + instr + "= @" + i++ + "\"" + LINE_SEPARATOR);
+		}
+		
 		writer.flush();
 	}
 	
@@ -856,8 +871,16 @@ public class Midi2MML {
 				// for some reasons, this function does not dispatch note on.
 				break;
 			case ShortMessage.PROGRAM_CHANGE:
-				// mmlEvents.add(new MMLEvent(MMLSymbol.INSTRUMENT, new String[] {
-				// String.format("%d", message.getData1()) }));
+				String instr = String.format("%02d", message.getData1());
+				if(putSpaces) {
+					instr += " ";
+				}
+				if(!instruments.contains(instr)) {
+					instruments.add(instr);
+				}
+				mmlEvents.add(new MMLEvent(mmlSymbol.getInstrumentMacro(), new String[]{instr}));
+				break;
+			default:
 				break;
 			}
 		} else if(event.getMessage() instanceof MetaMessage) {

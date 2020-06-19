@@ -60,7 +60,7 @@ public class MidiUtil {
 	 * @return New sequence which does not contain mixed-channel tracks.
 	 * @throws InvalidMidiDataException throw if MIDI data is invalid.
 	 */
-	public static Sequence SeparateMixedChannel(Sequence sourceSeq) throws InvalidMidiDataException {
+	public static Sequence separateMixedChannel(Sequence sourceSeq) throws InvalidMidiDataException {
 		Sequence seq = new Sequence(sourceSeq.getDivisionType(), sourceSeq.getResolution());
 		
 		// process all input tracks

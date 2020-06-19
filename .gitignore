@@ -6,3 +6,5 @@ bin/
 build/
 *~
 .DS_Store
+*.mid
+*.mml

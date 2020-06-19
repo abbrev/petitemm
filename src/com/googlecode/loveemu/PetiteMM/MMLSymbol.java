@@ -33,11 +33,6 @@ public class MMLSymbol {
 	private String instrument = "@";
 	
 	/**
-	 * MML text for instrument macro.
-	 */
-	private String instrumentMacro = "I";
-	
-	/**
 	 * MML text for increasing octave.
 	 */
 	private String octaveUp = "<";
@@ -66,6 +61,21 @@ public class MMLSymbol {
 	 * true if triplet should have length in bracket. ({c4c4c4} or {ccc})
 	 */
 	private boolean tripletHaveLengthInBracket = true;
+	
+	/**
+	 * MML text for instrument macro.
+	 */
+	private String instrumentMacro = "I";
+	
+	/**
+	 * MML text for instrument macro.
+	 */
+	private String volumeMacro = "V";
+	
+	/**
+	 * MML text for instrument macro.
+	 */
+	private String panMacro = "Y";
 	
 	/**
 	 * Construct a new MML symbol set.
@@ -198,5 +208,21 @@ public class MMLSymbol {
 
 	public void setInstrumentMacro(String instrumentMacro) {
 		this.instrumentMacro = instrumentMacro;
+	}
+
+	public String getVolumeMacro() {
+		return volumeMacro;
+	}
+
+	public void setVolumeMacro(String volumeMacro) {
+		this.volumeMacro = volumeMacro;
+	}
+
+	public String getPanMacro() {
+		return panMacro;
+	}
+
+	public void setPanMacro(String panMacro) {
+		this.panMacro = panMacro;
 	}
 }
