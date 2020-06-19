@@ -1,9 +1,7 @@
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.StringWriter;
 
 import javax.sound.midi.InvalidMidiDataException;
 import javax.sound.midi.MidiSystem;
@@ -144,14 +142,12 @@ public class PetiteMM {
 				throw new FileNotFoundException(midiFile.getName() + " (The system cannot find the file specified)");
 			}
 			
-			StringWriter strWriter = new StringWriter();
-			BufferedWriter writer = new BufferedWriter(strWriter);
+			StringBuilder writer = new StringBuilder();
 			converter.writeMML(MidiSystem.getSequence(midiFile), writer);
-			writer.flush();
-			
+			StringBuilder mml = converter.writeMacros();
+			mml.append(writer.toString());
 			fileWriter = new FileWriter(mmlFile);
-			fileWriter.write(strWriter.toString());
-			
+			fileWriter.write(mml.toString());
 			succeeded = true;
 		} catch(InvalidMidiDataException | IOException e) {
 			e.printStackTrace();

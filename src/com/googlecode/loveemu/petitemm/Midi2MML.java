@@ -1,7 +1,6 @@
 package com.googlecode.loveemu.petitemm;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -350,7 +349,7 @@ public class Midi2MML {
 	 * @throws InvalidMidiDataException      throws if unexpected MIDI event is
 	 *                                       appeared.
 	 */
-	public void writeMML(Sequence seq, Writer writer) throws IOException, InvalidMidiDataException {
+	public void writeMML(Sequence seq, StringBuilder writer) throws IOException, InvalidMidiDataException {
 		// sequence must be tick-based
 		if(seq.getDivisionType() != Sequence.PPQ) {
 			throw new UnsupportedOperationException("SMPTE is not supported.");
@@ -741,38 +740,40 @@ public class Midi2MML {
 				if(firstTrackWrite)
 					firstTrackWrite = false;
 				else {
-					writer.write(LINE_SEPARATOR);
-					writer.write(mmlSymbol.getTrackEnd());
-					writer.write(LINE_SEPARATOR);
+					writer.append(LINE_SEPARATOR);
+					writer.append(mmlSymbol.getTrackEnd());
+					writer.append(LINE_SEPARATOR);
 				}
 				mmlTrack.writeMML(writer);
 			}
 		}
-		
-		// Write macros
-		writer.write(LINE_SEPARATOR + "; Instrument macros" + LINE_SEPARATOR);
+	}
+	
+	public StringBuilder writeMacros() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("; Instrument macros" + LINE_SEPARATOR);
 		int i = 30;
 		for(int instr : instruments) {
 			String macro = String.format("\"I%02X\t= %s%d\"%s", instr, mmlSymbol.getInstrument(), i++, LINE_SEPARATOR);
-			writer.write(macro);
+			sb.append(macro);
 		}
 		
-		writer.write(LINE_SEPARATOR + "; Pan macros" + LINE_SEPARATOR);
+		sb.append(LINE_SEPARATOR + "; Pan macros" + LINE_SEPARATOR);
 		for(int pan : pannings) {
 			int y = Utils.getClosestValue(panValues, pan);
 			String macro = String.format("\"Y%02X\t= %s%d\"%s", pan, mmlSymbol.getPan(), y, LINE_SEPARATOR);
-			writer.write(macro);
+			sb.append(macro);
 		}
 		
-		writer.write(LINE_SEPARATOR + "; Volume macros" + LINE_SEPARATOR);
+		sb.append(LINE_SEPARATOR + "; Volume macros" + LINE_SEPARATOR);
 		for(Pair<Integer, Integer> volume : volumes) {
 			int index = (int) Math.round(77.0 * ((double) volume.x / 127.0) * ((double) volume.y / 127.0));
 			int v = volumeValues[index];
 			String macro = String.format("\"V%02XQ%02X\t= %s%d\"%s", volume.x, volume.y, mmlSymbol.getVolume(), v, LINE_SEPARATOR);
-			writer.write(macro);
+			sb.append(macro);
 		}
-		
-		writer.flush();
+		sb.append(LINE_SEPARATOR);
+		return sb;
 	}
 	
 	/**

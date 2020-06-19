@@ -1,7 +1,6 @@
 package com.googlecode.loveemu.petitemm;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -268,7 +267,7 @@ class Midi2MMLTrack {
 	 * @param writer Destination to write MML text.
 	 * @throws IOException throws if I/O error is happened.
 	 */
-	void writeMML(Writer writer) throws IOException {
+	void writeMML(StringBuilder writer) throws IOException {
 		if(!mmlEventList.isEmpty()) {
 			StringBuilder mmlBuffer = new StringBuilder();
 			
@@ -302,10 +301,10 @@ class Midi2MMLTrack {
 				mmlString = convertToTriplet(mmlString);
 			}
 			
-			writer.write(mmlString);
+			writer.append(mmlString);
 			
 			if(!mmlString.endsWith(System.getProperty("line.separator"))) {
-				writer.write(System.getProperty("line.separator"));
+				writer.append(System.getProperty("line.separator"));
 			}
 		}
 	}
