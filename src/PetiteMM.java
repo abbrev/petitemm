@@ -62,8 +62,6 @@ public class PetiteMM {
 		
 		int argi = 0;
 		
-		args = new String[]{"--put-spaces", "--no-quantize", "BattleArena.mid"};
-		
 		// dispatch option switches
 		while(argi < args.length && args[argi].startsWith("-")) {
 			if(args[argi].equals("-o")) {
@@ -155,7 +153,7 @@ public class PetiteMM {
 			fileWriter.write(strWriter.toString());
 			
 			succeeded = true;
-		} catch(InvalidMidiDataException|IOException e) {
+		} catch(InvalidMidiDataException | IOException e) {
 			e.printStackTrace();
 		} finally {
 			if(fileWriter != null) {
