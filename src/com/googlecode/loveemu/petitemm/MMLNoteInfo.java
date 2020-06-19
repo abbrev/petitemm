@@ -1,4 +1,4 @@
-package com.googlecode.loveemu.PetiteMM;
+package com.googlecode.loveemu.petitemm;
 
 public class MMLNoteInfo {
 	
@@ -77,6 +77,8 @@ public class MMLNoteInfo {
 					keyIndex += mmlSymbol.getNotes().length;
 				}
 			}
+			
+			text = text.replaceAll("\\^\\$N", "^");
 			return text.replaceAll("\\$N", mmlSymbol.getNote(keyIndex));
 		}
 	}

@@ -1,4 +1,4 @@
-package com.googlecode.loveemu.PetiteMM;
+package com.googlecode.loveemu.petitemm;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -84,13 +84,7 @@ public class MMLNoteConverter {
 		}
 		sb.append(notes[len].getText());
 		
-		String note = sb.toString();
-		if(note.contains("^")) {
-			String name = note.split("\\d+")[0];
-			note = note.replaceAll("[a-zA-Z\\\\+-]", "");
-			note = name.concat(note);
-		}
-		return note;
+		return sb.toString();
 	}
 	
 	/**
@@ -117,13 +111,7 @@ public class MMLNoteConverter {
 		}
 		sb.append(notes[len].getText(key));
 		
-		String note = sb.toString();
-		if(note.contains("^")) {
-			String name = note.split("\\d+")[0];
-			note = note.replaceAll("[a-zA-Z\\\\+-]", "");
-			note = name.concat(note);
-		}
-		return note;
+		return sb.toString();
 	}
 	
 	/**
@@ -267,7 +255,7 @@ public class MMLNoteConverter {
 			// dotted notes
 			int dot = 1;
 			int baseNoteTick = tick;
-			String mml = notes[tick].getText();
+			StringBuilder mml = new StringBuilder(notes[tick].getText());
 			List<Integer> dottedNoteLengthDotsDisassembled = new ArrayList<>();
 			dottedNoteLengthDotsDisassembled.add(baseNoteTick);
 			while(baseNoteTick % (1 << dot) == 0) {
@@ -276,7 +264,7 @@ public class MMLNoteConverter {
 					break;
 				}
 				
-				mml = mml + ".";
+				mml.append(".");
 				tick += (baseNoteTick >> dot);
 				
 				// quit if the note length exceeds c1^c1
@@ -297,7 +285,7 @@ public class MMLNoteConverter {
 				dottedNoteLengthDotsDisassembled.add(baseNoteTick >> dot);
 				
 				// add new note
-				notes[tick] = new MMLNoteInfo(mmlSymbol, mml);
+				notes[tick] = new MMLNoteInfo(mmlSymbol, mml.toString());
 				noteLengths.set(tick, dottedNoteLength);
 				noteLengthsDotsDisassembled.set(tick, new ArrayList<Integer>(dottedNoteLengthDotsDisassembled));
 				singleNotes[tick] = notes[tick];

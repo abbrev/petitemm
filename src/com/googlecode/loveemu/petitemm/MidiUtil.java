@@ -1,4 +1,4 @@
-package com.googlecode.loveemu.PetiteMM;
+package com.googlecode.loveemu.petitemm;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +35,10 @@ public class MidiUtil {
 	public static final int META_SMPTE_OFFSET = 0x54;
 	public static final int META_TIME_SIGNATURE = 0x58;
 	public static final int META_KEY_SIGNATURE = 0x59;
+	
+	private MidiUtil() {
+		super();
+	}
 	
 	/**
 	 * Read variable length number from byte array.

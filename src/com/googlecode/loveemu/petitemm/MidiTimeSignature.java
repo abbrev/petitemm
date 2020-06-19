@@ -1,4 +1,4 @@
-package com.googlecode.loveemu.PetiteMM;
+package com.googlecode.loveemu.petitemm;
 
 import java.util.List;
 
@@ -116,8 +116,9 @@ public class MidiTimeSignature {
 	 * @return Length of a measure in ticks.
 	 */
 	public int getLength(int ppqn) {
-		if(ppqn <= 0)
+		if(ppqn <= 0) {
 			throw new IllegalArgumentException("PPQN must be greater than 0.");
+		}
 		return (ppqn * 4 * numerator) >> denominator;
 	}
 	

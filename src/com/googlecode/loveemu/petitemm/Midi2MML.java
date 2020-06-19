@@ -1,4 +1,4 @@
-package com.googlecode.loveemu.PetiteMM;
+package com.googlecode.loveemu.petitemm;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -112,11 +112,44 @@ public class Midi2MML {
 	/**
 	 * true if write debug informations to stdout.
 	 */
-	private static final boolean debugDump = false;
+	private static final boolean DEBUG_DUMP = false;
 	
-	private List<String> instruments = new ArrayList<>();
-	private List<String> volumes = new ArrayList<>();
-	private List<String> pannings = new ArrayList<>();
+	/**
+	 * Midi pan values indexed by y (y0 = right, y20 = left).
+	 */
+	private static final int[] panValues = {
+			128, 127, 126, 122, 116, 109, 102, 93, 85, 75, 64, 53, 43, 35, 26, 19, 12, 6, 2, 1, 0
+	};
+	
+	/**
+	 * v values indexed by volume output value (from 0 to 77).
+	 */
+	private static final int[] volumeValues = {
+			33, 44, 52, 59, 66, 72, 79, 84, 89, 93, 97, 101, 106, 110, 113, 117,
+			120, 123, 127, 131, 134, 137, 140, 143, 147, 149, 152, 154, 157, 159, 162, 165,
+			167, 170, 172, 174, 177, 179, 182, 184, 186, 188, 190, 194, 196, 198, 200, 202,
+			204, 206, 208, 210, 212, 214, 216, 217, 220, 222, 223, 225, 227, 228, 231, 232,
+			234, 236, 237, 239, 241, 243, 244, 246, 248, 249, 251, 253, 254, 255
+	};
+	
+	private List<Integer> instruments = new ArrayList<>();
+	private List<Pair<Integer, Integer>> volumes = new ArrayList<>();
+	private List<Integer> pannings = new ArrayList<>();
+	
+	/**
+	 * Current volume, for each midi track.
+	 */
+	private List<Integer> currentVolume = new ArrayList<>();
+	
+	/**
+	 * Current note velocity, for each midi track.
+	 */
+	private List<Integer> currentVelocity = new ArrayList<>();
+	
+	/**
+	 * Midi track number currently being processed.
+	 */
+	private int currentTrackNumber;
 	
 	/**
 	 * Construct a new MIDI to MML converter.
@@ -357,9 +390,10 @@ public class Midi2MML {
 			timeSignatures.add(new MidiTimeSignature(4, 2));
 		}
 		
-		if(debugDump) {
-			for(MidiTimeSignature timeSignature : timeSignatures)
+		if(DEBUG_DUMP) {
+			for(MidiTimeSignature timeSignature : timeSignatures) {
 				System.out.println(timeSignature);
+			}
 		}
 		
 		// reset track parameters
@@ -373,6 +407,11 @@ public class Midi2MML {
 		// reset subsystems
 		MMLNoteConverter noteConv = new MMLNoteConverter(mmlSymbol, seq.getResolution(), maxDots);
 		
+		for(int i = 0; i < trackCount; i++) {
+			currentVolume.add(127);
+			currentVelocity.add(127);
+		}
+		
 		// convert tracks at the same time
 		// reading tracks one by one would be simpler than the tick-based loop,
 		// but it would limit handling a global event such as time signature.
@@ -380,6 +419,8 @@ public class Midi2MML {
 		boolean mmlFinished = false;
 		while(!mmlFinished) {
 			for(int trackIndex = 0; trackIndex < trackCount; trackIndex++) {
+				currentTrackNumber = trackIndex;
+				
 				Midi2MMLTrack mmlTrack = mmlTracks[trackIndex];
 				Track track = seq.getTracks()[trackIndex];
 				List<MidiNote> midiNotes = midiTrackNotes.get(trackIndex);
@@ -399,12 +440,13 @@ public class Midi2MML {
 					mmlTrack.setMidiEventIndex(mmlTrack.getMidiEventIndex() + 1);
 					
 					// dump for debug
-					if(debugDump)
+					if(DEBUG_DUMP) {
 						System.out
-								.format("MidiEvent: track=%d,tick=%d<%s>,message=%s\n", trackIndex, event.getTick(),
+								.format("MidiEvent: track=%d,tick=%d<%s>,message=%s%n", trackIndex, event.getTick(),
 										MidiTimeSignature.getMeasureTickString(event.getTick(), timeSignatures,
 												seq.getResolution()),
 										byteArrayToString(event.getMessage().getMessage()));
+					}
 					
 					// branch by event type for more detailed access
 					List<MMLEvent> mmlEvents = new ArrayList<>();
@@ -453,7 +495,7 @@ public class Midi2MML {
 										rateCandidates.add(2.0 / 3.0); // triplet
 									Collections.sort(rateCandidates);
 									
-									if(debugDump) {
+									if(DEBUG_DUMP) {
 										StringBuilder ratesBuffer = new StringBuilder();
 										boolean firstItem = true;
 										ratesBuffer.append("[");
@@ -461,7 +503,7 @@ public class Midi2MML {
 											if(firstItem)
 												firstItem = false;
 											else
-												ratesBuffer.append(String.format(",", rateCandidate));
+												ratesBuffer.append(",");
 											ratesBuffer.append(String.format("%.3f", rateCandidate));
 										}
 										ratesBuffer.append("]");
@@ -485,7 +527,7 @@ public class Midi2MML {
 										double rateDistance = Math.abs(rateLowerLimit - rateCandidate);
 										if(rateDistance <= rateBestDistance) {
 											boolean rateRequiresUpdate = true;
-											if(nearPow2 >= quantizeNoteLength & rateCandidate < rateUpperLimit) {
+											if(nearPow2 >= quantizeNoteLength && rateCandidate < rateUpperLimit) {
 												long noteLengthCandidate = Math.round(nearPow2 * rateCandidate);
 												List<Integer> noteLengths = noteConv
 														.getPrimitiveNoteLengths((int) noteLengthCandidate, true);
@@ -521,9 +563,9 @@ public class Midi2MML {
 									
 									length += wholeNoteCount * (seq.getResolution() * 4);
 									
-									if(debugDump)
+									if(DEBUG_DUMP) {
 										System.out.format(
-												"Note Off: track=%d,tick=%d<%s>,mmlLastTick=%d<%s>,length=%d,minLength=%d,maxLength=%d,nearPow2=%d,rateLimit=[%.2f,%.2f],rateNearest=%.2f,next=%s\n",
+												"Note Off: track=%d,tick=%d<%s>,mmlLastTick=%d<%s>,length=%d,minLength=%d,maxLength=%d,nearPow2=%d,rateLimit=[%.2f,%.2f],rateNearest=%.2f,next=%s%n",
 												trackIndex, tick,
 												MidiTimeSignature.getMeasureTickString(tick, timeSignatures,
 														seq.getResolution()),
@@ -532,6 +574,7 @@ public class Midi2MML {
 														seq.getResolution()),
 												length, minLength, maxLength, nearPow2, rateLowerLimit, rateUpperLimit,
 												rateNearest, (midiNextNote != null) ? midiNextNote.toString() : "null");
+									}
 								}
 								
 								mmlTrack.setTick(mmlLastTick + length);
@@ -541,6 +584,19 @@ public class Midi2MML {
 						} else if(message.getCommand() == ShortMessage.NOTE_ON) {
 							int noteNumber = message.getData1();
 							int noteOctave = noteNumber / 12 - 2;
+							
+							int velocity = message.getData2();
+							if(velocity != currentVelocity.get(currentTrackNumber)) {
+								currentVelocity.set(currentTrackNumber, velocity);
+								int volume = currentVolume.get(currentTrackNumber);
+								Pair<Integer, Integer> newPair = new Pair<>(volume, velocity);
+								if(!volumes.contains(newPair)) {
+									volumes.add(newPair);
+								}
+								String space = putSpaces ? " " : "";
+								String sVol = String.format("%02XQ%02X", volume, velocity) + space;
+								mmlEvents.add(new MMLEvent(mmlSymbol.getVolumeMacro(), new String[] {sVol}));
+							}
 							
 							// write some initialization for the first note
 							if(mmlTrack.isFirstNote()) {
@@ -588,12 +644,13 @@ public class Midi2MML {
 					// timing changed,
 					// write the last note/rest and finish the seek
 					if(mmlTrack.getTick() != mmlLastTick) {
-						if(debugDump)
-							System.out.format("Timing: track=%d,%d<%s> -> %d<%s>\n", trackIndex, mmlLastTick,
+						if(DEBUG_DUMP) {
+							System.out.format("Timing: track=%d,%d<%s> -> %d<%s>%n", trackIndex, mmlLastTick,
 									MidiTimeSignature.getMeasureTickString(mmlLastTick, timeSignatures,
 											seq.getResolution()),
 									mmlTrack.getTick(), MidiTimeSignature.getMeasureTickString(mmlTrack.getTick(),
 											timeSignatures, seq.getResolution()));
+						}
 						
 						if(mmlLastNoteNumber == MMLNoteConverter.KEY_REST) {
 							List<Integer> lengths = noteConv
@@ -693,10 +750,26 @@ public class Midi2MML {
 		}
 		
 		// Write macros
-		writer.write(LINE_SEPARATOR + "; Macros" + LINE_SEPARATOR);
+		writer.write(LINE_SEPARATOR + "; Instrument macros" + LINE_SEPARATOR);
 		int i = 30;
-		for(String instr : instruments) {
-			writer.write("\"I" + instr + "= @" + i++ + "\"" + LINE_SEPARATOR);
+		for(int instr : instruments) {
+			String macro = String.format("\"I%02X\t= %s%d\"%s", instr, mmlSymbol.getInstrument(), i++, LINE_SEPARATOR);
+			writer.write(macro);
+		}
+		
+		writer.write(LINE_SEPARATOR + "; Pan macros" + LINE_SEPARATOR);
+		for(int pan : pannings) {
+			int y = Utils.getClosestValue(panValues, pan);
+			String macro = String.format("\"Y%02X\t= %s%d\"%s", pan, mmlSymbol.getPan(), y, LINE_SEPARATOR);
+			writer.write(macro);
+		}
+		
+		writer.write(LINE_SEPARATOR + "; Volume macros" + LINE_SEPARATOR);
+		for(Pair<Integer, Integer> volume : volumes) {
+			int index = (int) Math.round(77.0 * ((double) volume.x / 127.0) * ((double) volume.y / 127.0));
+			int v = volumeValues[index];
+			String macro = String.format("\"V%02XQ%02X\t= %s%d\"%s", volume.x, volume.y, mmlSymbol.getVolume(), v, LINE_SEPARATOR);
+			writer.write(macro);
 		}
 		
 		writer.flush();
@@ -745,9 +818,10 @@ public class Midi2MML {
 					throw new InvalidMidiDataException("Sequence contains an unfinished note.");
 				}
 				// dump for debug
-				if(debugDump)
-					System.out.format("[ch%d/%d] Note (%d) len=%d vel=%d\n", note.getChannel(), note.getTime(),
+				if(DEBUG_DUMP) {
+					System.out.format("[ch%d/%d] Note (%d) len=%d vel=%d%n", note.getChannel(), note.getTime(),
 							note.getNoteNumber(), note.getLength(), note.getVelocity());
+				}
 			}
 			midiTrackNotes.add(midiNotes);
 		}
@@ -866,19 +940,47 @@ public class Midi2MML {
 		if(event.getMessage() instanceof ShortMessage) {
 			ShortMessage message = (ShortMessage) event.getMessage();
 			
+			String space = putSpaces ? " " : "";
+			
 			switch(message.getCommand()) {
 			case ShortMessage.NOTE_ON:
-				// for some reasons, this function does not dispatch note on.
+				// For some reason, this function does not dispatch note on.
 				break;
-			case ShortMessage.PROGRAM_CHANGE:
-				String instr = String.format("%02d", message.getData1());
-				if(putSpaces) {
-					instr += " ";
-				}
+			case ShortMessage.PROGRAM_CHANGE: // Instrument change
+				int instr = message.getData1();
 				if(!instruments.contains(instr)) {
 					instruments.add(instr);
 				}
-				mmlEvents.add(new MMLEvent(mmlSymbol.getInstrumentMacro(), new String[]{instr}));
+				String sInstr = String.format("%02X", instr) + space;
+				mmlEvents.add(new MMLEvent(mmlSymbol.getInstrumentMacro(), new String[]{sInstr}));
+				break;
+			case ShortMessage.CONTROL_CHANGE: // Volume/pan change
+				int type = message.getData1();
+				switch(type) {
+				case 0x07: // Volume
+					int volume = message.getData2();
+					if(volume != currentVolume.get(currentTrackNumber)) {
+						currentVolume.set(currentTrackNumber, volume);
+						int velocity = currentVelocity.get(currentTrackNumber);
+						Pair<Integer, Integer> newPair = new Pair<>(volume, velocity);
+						if(!volumes.contains(newPair)) {
+							volumes.add(newPair);
+						}
+						String sVol = String.format("%02XQ%02X", volume, velocity) + space;
+						mmlEvents.add(new MMLEvent(mmlSymbol.getVolumeMacro(), new String[] {sVol}));
+					}
+					break;
+				case 0x0a: // Pan
+					int pan = message.getData2();
+					if(!pannings.contains(pan)) {
+						pannings.add(pan);
+					}
+					String sPan = String.format("%02X", pan) + space;
+					mmlEvents.add(new MMLEvent(mmlSymbol.getPanMacro(), new String[]{sPan}));
+					break;
+				default:
+					break;
+				}
 				break;
 			default:
 				break;

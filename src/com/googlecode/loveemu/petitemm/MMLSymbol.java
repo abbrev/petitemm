@@ -1,4 +1,4 @@
-package com.googlecode.loveemu.PetiteMM;
+package com.googlecode.loveemu.petitemm;
 
 public class MMLSymbol {
 	
@@ -31,6 +31,16 @@ public class MMLSymbol {
 	 * MML text for instrument.
 	 */
 	private String instrument = "@";
+	
+	/**
+	 * MML text for pan.
+	 */
+	private String pan = "y";
+	
+	/**
+	 * MML text for volume.
+	 */
+	private String volume = "v";
 	
 	/**
 	 * MML text for increasing octave.
@@ -201,28 +211,44 @@ public class MMLSymbol {
 	public void setTripletHaveLengthInBracket(boolean tripletHaveLengthInBracket) {
 		this.tripletHaveLengthInBracket = tripletHaveLengthInBracket;
 	}
-
+	
 	public String getInstrumentMacro() {
 		return instrumentMacro;
 	}
-
+	
 	public void setInstrumentMacro(String instrumentMacro) {
 		this.instrumentMacro = instrumentMacro;
 	}
-
+	
 	public String getVolumeMacro() {
 		return volumeMacro;
 	}
-
+	
 	public void setVolumeMacro(String volumeMacro) {
 		this.volumeMacro = volumeMacro;
 	}
-
+	
 	public String getPanMacro() {
 		return panMacro;
 	}
-
+	
 	public void setPanMacro(String panMacro) {
 		this.panMacro = panMacro;
+	}
+	
+	public String getPan() {
+		return pan;
+	}
+	
+	public void setPan(String pan) {
+		this.pan = pan;
+	}
+	
+	public String getVolume() {
+		return volume;
+	}
+	
+	public void setVolume(String volume) {
+		this.volume = volume;
 	}
 }

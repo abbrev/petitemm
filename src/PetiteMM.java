@@ -8,7 +8,7 @@ import java.io.StringWriter;
 import javax.sound.midi.InvalidMidiDataException;
 import javax.sound.midi.MidiSystem;
 
-import com.googlecode.loveemu.PetiteMM.Midi2MML;
+import com.googlecode.loveemu.petitemm.Midi2MML;
 
 public class PetiteMM {
 	
@@ -62,7 +62,7 @@ public class PetiteMM {
 		
 		int argi = 0;
 		
-		args = new String[]{"--put-spaces", "DigimonBadlands.mid"};
+		args = new String[]{"--put-spaces", "--no-quantize", "BattleArena.mid"};
 		
 		// dispatch option switches
 		while(argi < args.length && args[argi].startsWith("-")) {
@@ -120,7 +120,7 @@ public class PetiteMM {
 			if(argsAvail.length > 0)
 				System.out.println("Options:");
 			for(int i = 0; i < argsAvail.length / 3; i++) {
-				System.out.format("%-20s %-9s %s\n", argsAvail[i * 3], argsAvail[i * 3 + 1], argsAvail[i * 3 + 2]);
+				System.out.format("%-20s %-9s %s%n", argsAvail[i * 3], argsAvail[i * 3 + 1], argsAvail[i * 3 + 2]);
 			}
 			
 			System.exit(1);
@@ -142,8 +142,9 @@ public class PetiteMM {
 		FileWriter fileWriter = null;
 		boolean succeeded = false;
 		try {
-			if(!midiFile.exists())
+			if(!midiFile.exists()) {
 				throw new FileNotFoundException(midiFile.getName() + " (The system cannot find the file specified)");
+			}
 			
 			StringWriter strWriter = new StringWriter();
 			BufferedWriter writer = new BufferedWriter(strWriter);
@@ -154,9 +155,7 @@ public class PetiteMM {
 			fileWriter.write(strWriter.toString());
 			
 			succeeded = true;
-		} catch(InvalidMidiDataException e) {
-			e.printStackTrace();
-		} catch(IOException e) {
+		} catch(InvalidMidiDataException|IOException e) {
 			e.printStackTrace();
 		} finally {
 			if(fileWriter != null) {

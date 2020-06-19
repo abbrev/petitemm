@@ -1,4 +1,4 @@
-package com.googlecode.loveemu.PetiteMM;
+package com.googlecode.loveemu.petitemm;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -7,6 +7,9 @@ import java.util.LinkedList;
 import java.util.List;
 
 class Midi2MMLTrack {
+	
+	private static final String REGEX1 = "([<>]*[abcdefgr\\^][\\+\\-]*)";
+	private static final String REGEX2 = "(\\s*[<>]*[abcdefgr\\^][\\+\\-]*)";
 	
 	/**
 	 * Output MML text.
@@ -268,13 +271,36 @@ class Midi2MMLTrack {
 	void writeMML(Writer writer) throws IOException {
 		if(!mmlEventList.isEmpty()) {
 			StringBuilder mmlBuffer = new StringBuilder();
-			for(MMLEvent event : mmlEventList) {
+			
+			// Satanic way to solve ties issues with commands inside notes
+			boolean addTie = false;
+			for(int i = 0; i < mmlEventList.size(); i++) {
+				MMLEvent event = mmlEventList.get(i);
+				if(addTie && event.getCommand().matches("[abcdefgr][0-9]*[+-]?")) {
+					mmlBuffer.append(mmlSymbol.getTie());
+					addTie = false;
+					mmlBuffer.append(event.toString().replaceAll("[abcdefgr][+-]?", ""));
+					continue;
+				} else if(event.getCommand().equals(mmlSymbol.getTie())) {
+					for(int j = i + 1; j < mmlEventList.size(); j++) {
+						String command = mmlEventList.get(j).getCommand();
+						if(!command.equals(" ") && !command.matches("[abcdefgr][0-9]*[+-]?")) {
+							// We have a tie followed by a non-note command, so don't write the tie
+							addTie = true;
+							break;
+						}
+					}
+					if(addTie) {
+						continue;
+					}
+				}
 				mmlBuffer.append(event.toString());
 			}
 			
 			String mmlString = mmlBuffer.toString();
-			if(useTriplet)
+			if(useTriplet) {
 				mmlString = convertToTriplet(mmlString);
+			}
 			
 			writer.write(mmlString);
 			
@@ -293,33 +319,24 @@ class Midi2MMLTrack {
 			int noteLenTo = 1 << i;
 			int noteLenFrom = noteLenTo * 3;
 			converted = converted.replaceAll(
-					"([<>]*[abcdefgr\\^][\\+\\-]*)" + noteLenFrom + "(\\s*[<>]*[abcdefgr\\^][\\+\\-]*)" + noteLenFrom
-							+ "(\\s*[<>]*[abcdefgr\\^][\\+\\-]*)" + noteLenFrom,
+					REGEX1 + noteLenFrom + REGEX2 + noteLenFrom + "(\\s*[<>]*[abcdefgr\\^][\\+\\-]*)" + noteLenFrom,
 					"\\" + mmlSymbol.getTripletStart(noteLenTo) + "$1"
 							+ (mmlSymbol.shouldTripletHaveLengthInBracket() ? "\\" + noteLenTo : "") + "$2"
 							+ (mmlSymbol.shouldTripletHaveLengthInBracket() ? "\\" + noteLenTo : "") + "$3"
 							+ (mmlSymbol.shouldTripletHaveLengthInBracket() ? "\\" + noteLenTo : "") + "\\"
 							+ mmlSymbol.getTripletEnd(noteLenTo)); // c12c12c12 -> {c4c4c4}
 			if(mmlSymbol.shouldTripletHaveLengthInBracket()) {
-				converted = converted.replaceAll(
-						"([<>]*[abcdefgr\\^][\\+\\-]*)" + (noteLenFrom * 2) + "(\\s*[<>]*[abcdefgr\\^][\\+\\-]*)"
-								+ noteLenFrom,
+				converted = converted.replaceAll(REGEX1 + (noteLenFrom * 2) + REGEX2 + noteLenFrom,
 						"\\" + mmlSymbol.getTripletStart(noteLenTo) + "$1\\" + (noteLenTo * 2) + "$2\\" + noteLenTo
 								+ "\\" + mmlSymbol.getTripletEnd(noteLenTo)); // c6c12 -> {c2c4}
-				converted = converted.replaceAll(
-						"([<>]*[abcdefgr\\^][\\+\\-]*)" + noteLenFrom + "(\\s*[<>]*[abcdefgr\\^][\\+\\-]*)"
-								+ (noteLenFrom * 2),
+				converted = converted.replaceAll(REGEX1 + noteLenFrom + REGEX2 + (noteLenFrom * 2),
 						"\\" + mmlSymbol.getTripletStart(noteLenTo) + "$1\\" + noteLenTo + "$2\\" + (noteLenTo * 2)
 								+ "\\" + mmlSymbol.getTripletEnd(noteLenTo)); // c12c6 -> {c4c2}
 			} else {
-				converted = converted.replaceAll(
-						"([<>]*[abcdefgr\\^][\\+\\-]*)" + (noteLenFrom * 2) + "(\\s*[<>]*[abcdefgr\\^][\\+\\-]*)"
-								+ noteLenFrom,
+				converted = converted.replaceAll(REGEX1 + (noteLenFrom * 2) + REGEX2 + noteLenFrom,
 						"\\" + mmlSymbol.getTripletStart(noteLenTo) + "$1\\" + mmlSymbol.getTie() + "$2\\"
 								+ mmlSymbol.getTripletEnd(noteLenTo)); // c6c12 -> {cc^}
-				converted = converted.replaceAll(
-						"([<>]*[abcdefgr\\^][\\+\\-]*)" + noteLenFrom + "(\\s*[<>]*[abcdefgr\\^][\\+\\-]*)"
-								+ (noteLenFrom * 2),
+				converted = converted.replaceAll(REGEX1 + noteLenFrom + REGEX2 + (noteLenFrom * 2),
 						"\\" + mmlSymbol.getTripletStart(noteLenTo) + "$1$2\\" + mmlSymbol.getTie() + "\\"
 								+ mmlSymbol.getTripletEnd(noteLenTo)); // c12c6 -> {c^c}
 			}
