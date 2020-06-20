@@ -109,6 +109,11 @@ public class Midi2MML {
 	private boolean putSpaces = false;
 	
 	/**
+	 * true if ignore expression messages.
+	 */
+	private boolean noExpression = false;
+	
+	/**
 	 * true if write debug informations to stdout.
 	 */
 	private static final boolean DEBUG_DUMP = false;
@@ -132,7 +137,7 @@ public class Midi2MML {
 	};
 	
 	private List<Integer> instruments = new ArrayList<>();
-	private List<Pair<Integer, Integer>> volumes = new ArrayList<>();
+	private List<Triple<Integer, Integer, Integer>> volumes = new ArrayList<>();
 	private List<Integer> pannings = new ArrayList<>();
 	
 	/**
@@ -144,6 +149,11 @@ public class Midi2MML {
 	 * Current note velocity, for each midi track.
 	 */
 	private List<Integer> currentVelocity = new ArrayList<>();
+	
+	/**
+	 * Current expression value, for each midi track.
+	 */
+	private List<Integer> currentExpression = new ArrayList<>();
 	
 	/**
 	 * Midi track number currently being processed.
@@ -196,15 +206,16 @@ public class Midi2MML {
 	 * @param obj
 	 */
 	public Midi2MML(Midi2MML obj) {
-		mmlSymbol = new MMLSymbol(obj.mmlSymbol);
-		maxDots = obj.maxDots;
-		quantizationEnabled = obj.quantizationEnabled;
-		octaveReversed = obj.octaveReversed;
-		useTriplet = obj.useTriplet;
-		inputResolution = obj.inputResolution;
-		targetResolution = obj.targetResolution;
-		quantizePrecision = obj.quantizePrecision;
-		putSpaces = obj.putSpaces;
+		this.mmlSymbol = new MMLSymbol(obj.mmlSymbol);
+		this.maxDots = obj.maxDots;
+		this.quantizationEnabled = obj.quantizationEnabled;
+		this.octaveReversed = obj.octaveReversed;
+		this.useTriplet = obj.useTriplet;
+		this.inputResolution = obj.inputResolution;
+		this.targetResolution = obj.targetResolution;
+		this.quantizePrecision = obj.quantizePrecision;
+		this.putSpaces = obj.putSpaces;
+		this.noExpression = obj.noExpression;
 	}
 	
 	/**
@@ -296,6 +307,14 @@ public class Midi2MML {
 	
 	public void setPutSpaces(boolean putSpaces) {
 		this.putSpaces = putSpaces;
+	}
+	
+	public boolean getNoExpression() {
+		return noExpression;
+	}
+	
+	public void setNoExpression(boolean noExpression) {
+		this.noExpression = noExpression;
 	}
 	
 	/**
@@ -409,6 +428,7 @@ public class Midi2MML {
 		for(int i = 0; i < trackCount; i++) {
 			currentVolume.add(127);
 			currentVelocity.add(127);
+			currentExpression.add(127);
 		}
 		
 		// convert tracks at the same time
@@ -587,14 +607,8 @@ public class Midi2MML {
 							int velocity = message.getData2();
 							if(velocity != currentVelocity.get(currentTrackNumber)) {
 								currentVelocity.set(currentTrackNumber, velocity);
-								int volume = currentVolume.get(currentTrackNumber);
-								Pair<Integer, Integer> newPair = new Pair<>(volume, velocity);
-								if(!volumes.contains(newPair)) {
-									volumes.add(newPair);
-								}
-								String space = putSpaces ? " " : "";
-								String sVol = String.format("%02XQ%02X", volume, velocity) + space;
-								mmlEvents.add(new MMLEvent(mmlSymbol.getVolumeMacro(), new String[] {sVol}));
+								addVolumeEvent(mmlEvents, currentVolume.get(currentTrackNumber), velocity,
+										currentExpression.get(currentTrackNumber));
 							}
 							
 							// write some initialization for the first note
@@ -766,10 +780,12 @@ public class Midi2MML {
 		}
 		
 		sb.append(LINE_SEPARATOR + "; Volume macros" + LINE_SEPARATOR);
-		for(Pair<Integer, Integer> volume : volumes) {
-			int index = (int) Math.round(77.0 * ((double) volume.x / 127.0) * ((double) volume.y / 127.0));
+		for(Triple<Integer, Integer, Integer> volume : volumes) {
+			double coeff = ((double) volume.x / 127.0) * ((double) volume.y / 127.0) * ((double) volume.z / 127.0);
+			int index = (int) Math.round(77.0 * coeff);
 			int v = volumeValues[index];
-			String macro = String.format("\"V%02XQ%02X\t= %s%d\"%s", volume.x, volume.y, mmlSymbol.getVolume(), v, LINE_SEPARATOR);
+			String macro = String.format("\"V%02XQ%02XE%02X\t= %s%d\"%s", volume.x, volume.y, volume.z,
+					mmlSymbol.getVolume(), v, LINE_SEPARATOR);
 			sb.append(macro);
 		}
 		sb.append(LINE_SEPARATOR);
@@ -962,22 +978,28 @@ public class Midi2MML {
 					int volume = message.getData2();
 					if(volume != currentVolume.get(currentTrackNumber)) {
 						currentVolume.set(currentTrackNumber, volume);
-						int velocity = currentVelocity.get(currentTrackNumber);
-						Pair<Integer, Integer> newPair = new Pair<>(volume, velocity);
-						if(!volumes.contains(newPair)) {
-							volumes.add(newPair);
-						}
-						String sVol = String.format("%02XQ%02X", volume, velocity) + space;
-						mmlEvents.add(new MMLEvent(mmlSymbol.getVolumeMacro(), new String[] {sVol}));
+						addVolumeEvent(mmlEvents, volume, currentVelocity.get(currentTrackNumber),
+								currentExpression.get(currentTrackNumber));
 					}
 					break;
-				case 0x0a: // Pan
+				case 0x0A: // Pan
 					int pan = message.getData2();
 					if(!pannings.contains(pan)) {
 						pannings.add(pan);
 					}
 					String sPan = String.format("%02X", pan) + space;
 					mmlEvents.add(new MMLEvent(mmlSymbol.getPanMacro(), new String[]{sPan}));
+					break;
+				case 0x0B: // Expression
+					if(noExpression) {
+						break;
+					}
+					int expression = message.getData2();
+					if(expression != currentExpression.get(currentTrackNumber)) {
+						currentExpression.set(currentTrackNumber, expression);
+						addVolumeEvent(mmlEvents, currentVolume.get(currentTrackNumber),
+								currentVelocity.get(currentTrackNumber), expression);
+					}
 					break;
 				default:
 					break;
@@ -1012,6 +1034,16 @@ public class Midi2MML {
 			}
 		}
 		return mmlEvents;
+	}
+	
+	private void addVolumeEvent(List<MMLEvent> mmlEvents, int volume, int velocity, int expression) {
+		Triple<Integer, Integer, Integer> newTriple = new Triple<>(volume, velocity, expression);
+		if(!volumes.contains(newTriple)) {
+			volumes.add(newTriple);
+		}
+		String space = putSpaces ? " " : "";
+		String sVol = String.format("%02XQ%02XE%02X", volume, velocity, expression) + space;
+		mmlEvents.add(new MMLEvent(mmlSymbol.getVolumeMacro(), new String[]{sVol}));
 	}
 	
 	/**

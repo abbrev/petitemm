@@ -56,7 +56,8 @@ public class PetiteMM {
 				"Prevent adjusting note length. Result will be more accurate but more complicated.", "--octave-reverse",
 				"", "Swap the octave symbol.", "--use-triplet", "",
 				"Use triplet syntax if possible. (really not so smart)", "--use-spaces", "",
-				"Put a space after each note/octave/instrument change."};
+				"Put a space after each note/octave/instrument change.", "--no-expression", "",
+				"Ignore Expression messages (Control Change message 11)."};
 		
 		int argi = 0;
 		
@@ -100,6 +101,8 @@ public class PetiteMM {
 				opt.setTripletPreference(true);
 			} else if(args[argi].equals("--put-spaces")) {
 				opt.setPutSpaces(true);
+			} else if(args[argi].equals("--no-expression")) {
+				opt.setNoExpression(true);
 			} else {
 				throw new IllegalArgumentException("Unsupported option [" + args[argi] + "]");
 			}
