@@ -84,7 +84,8 @@ public class MMLNoteConverter {
 		}
 		sb.append(notes[len].getText());
 		
-		return sb.toString();
+		String note = sb.toString();
+		return note.replaceAll("\\^[abcdefgr][+-]?", "^");
 	}
 	
 	/**
@@ -111,7 +112,8 @@ public class MMLNoteConverter {
 		}
 		sb.append(notes[len].getText(key));
 		
-		return sb.toString();
+		String note = sb.toString();
+		return note.replaceAll("\\^[abcdefgr][+-]?", "^");
 	}
 	
 	/**
