@@ -1,6 +1,5 @@
 package com.googlecode.loveemu.petitemm;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -265,35 +264,35 @@ class Midi2MMLTrack {
 	 * Write the final MML.
 	 * 
 	 * @param writer Destination to write MML text.
-	 * @throws IOException throws if I/O error is happened.
 	 */
-	void writeMML(StringBuilder writer) throws IOException {
+	void writeMML(StringBuilder writer) {
 		if(!mmlEventList.isEmpty()) {
 			StringBuilder mmlBuffer = new StringBuilder();
 			
 			// Satanic way to solve ties issues with commands inside notes
 			boolean addTie = false;
+			boolean skip;
 			for(int i = 0; i < mmlEventList.size(); i++) {
+				skip = false;
 				MMLEvent event = mmlEventList.get(i);
 				if(addTie && event.getCommand().matches("[abcdefgr][0-9]*[+-]?")) {
 					mmlBuffer.append(mmlSymbol.getTie());
 					addTie = false;
 					mmlBuffer.append(event.toString().replaceAll("[abcdefgr][+-]?", ""));
-					continue;
+					skip = true;
 				} else if(event.getCommand().equals(mmlSymbol.getTie())) {
-					for(int j = i + 1; j < mmlEventList.size(); j++) {
-						String command = mmlEventList.get(j).getCommand();
-						if(!command.equals(" ") && !command.matches("[abcdefgr][0-9]*[+-]?")) {
-							// We have a tie followed by a non-note command, so don't write the tie
-							addTie = true;
-							break;
-						}
-					}
-					if(addTie) {
-						continue;
-					}
+					// Check if we have a tie followed by a non-note command
+					// If yes, skip it and add it after the command
+					addTie = checkIfNonNoteNext(i);
+					skip = addTie;
+				} else if(event.getCommand().equals(mmlSymbol.getVolumeMacro())) {
+					// Optimize consecutive volume commands
+					skip = checkIfVolumeNext(i);
 				}
-				mmlBuffer.append(event.toString());
+				if(!skip) {
+					// If not set to skip the current event, write it.
+					mmlBuffer.append(event.toString());
+				}
 			}
 			
 			String mmlString = mmlBuffer.toString();
@@ -307,6 +306,32 @@ class Midi2MMLTrack {
 				writer.append(System.getProperty("line.separator"));
 			}
 		}
+	}
+	
+	private boolean checkIfVolumeNext(int i) {
+		for(int j = i + 1; j < mmlEventList.size(); j++) {
+			String command = mmlEventList.get(j).getCommand();
+			if(!command.equals(" ")) {
+				if(command.equals(mmlSymbol.getVolumeMacro())) {
+					// If there's another volume command, we don't need to write the current one
+					return true;
+				} else if(command.matches("[abcdefg][0-9]*[+-]?")) {
+					// If there's a note (non-rest) next, we have to write the volume command
+					return false;
+				}
+			}
+		}
+		return false;
+	}
+	
+	private boolean checkIfNonNoteNext(int i) {
+		for(int j = i + 1; j < mmlEventList.size(); j++) {
+			String command = mmlEventList.get(j).getCommand();
+			if(!command.equals(" ")) {
+				return !command.matches("[abcdefgr][0-9]*[+-]?");
+			}
+		}
+		return false;
 	}
 	
 	/**

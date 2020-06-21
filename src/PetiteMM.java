@@ -2,6 +2,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.sound.midi.InvalidMidiDataException;
 import javax.sound.midi.MidiSystem;
@@ -150,7 +154,7 @@ public class PetiteMM {
 			StringBuilder mml = converter.writeMacros();
 			mml.append(writer.toString());
 			fileWriter = new FileWriter(mmlFile);
-			fileWriter.write(mml.toString());
+			fileWriter.write(postProcess(mml));
 			succeeded = true;
 		} catch(InvalidMidiDataException | IOException e) {
 			e.printStackTrace();
@@ -165,6 +169,55 @@ public class PetiteMM {
 		}
 		
 		System.exit(succeeded ? 0 : 1);
+	}
+	
+	private static String postProcess(StringBuilder mml) {
+		String output = mml.toString();
+		
+		// If there's some unused macro left, remove it
+		List<String> matches = new ArrayList<>();
+		Matcher matcher = Pattern.compile("\".*=").matcher(output);
+		while(matcher.find()) {
+			String match = matcher.group().replaceAll("\\s+", "");
+			match = match.substring(1, match.length() - 1);
+			int count = output.split(match, -1).length - 1;
+			if(count <= 1) {
+				if(!matches.contains(match)) {
+					matches.add(match);
+				}
+			}
+		}
+		for(String match : matches) {
+			output = output.replaceAll("\"" + match + ".*=.*\"\\n", "");
+		}
+		
+		// If all expression values are the same, just remove them from macro names
+		matches.clear();
+		matcher = Pattern.compile("V..Q..E..").matcher(output);
+		while(matcher.find()) {
+			String match = matcher.group().substring(6);
+			if(!matches.contains(match)) {
+				matches.add(match);
+			}
+		}
+		if(matches.size() <= 1) {
+			output = output.replaceAll("(V..)(Q..)(E..)", "$1$2");
+		}
+		
+		// If all velocity values are the same, just remove them from macro names
+		matches.clear();
+		matcher = Pattern.compile("V..Q..").matcher(output);
+		while(matcher.find()) {
+			String match = matcher.group().substring(3);
+			if(!matches.contains(match)) {
+				matches.add(match);
+			}
+		}
+		if(matches.size() <= 1) {
+			output = output.replaceAll("(V..)(Q..)", "$1");
+		}
+		
+		return output;
 	}
 	
 }
