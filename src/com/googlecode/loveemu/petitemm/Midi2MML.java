@@ -118,47 +118,9 @@ public class Midi2MML {
 	 */
 	private static final boolean DEBUG_DUMP = false;
 	
-	/**
-	 * Midi pan values indexed by y (y0 = right, y20 = left).
-	 */
-	private static final int[] panValues = {
-			128, 127, 126, 122, 116, 109, 102, 93, 85, 75, 64, 53, 43, 35, 26, 19, 12, 6, 2, 1, 0
-	};
-	
-	/**
-	 * v values indexed by volume output value (from 0 to 77).
-	 */
-	private static final int[] volumeValues = {
-			33, 44, 52, 59, 66, 72, 79, 84, 89, 93, 97, 101, 106, 110, 113, 117,
-			120, 123, 127, 131, 134, 137, 140, 143, 147, 149, 152, 154, 157, 159, 162, 165,
-			167, 170, 172, 174, 177, 179, 182, 184, 186, 188, 190, 194, 196, 198, 200, 202,
-			204, 206, 208, 210, 212, 214, 216, 217, 220, 222, 223, 225, 227, 228, 231, 232,
-			234, 236, 237, 239, 241, 243, 244, 246, 248, 249, 251, 253, 254, 255
-	};
-	
 	private List<Integer> instruments = new ArrayList<>();
 	private List<Triple<Integer, Integer, Integer>> volumes = new ArrayList<>();
 	private List<Integer> pannings = new ArrayList<>();
-	
-	/**
-	 * Current volume, for each midi track.
-	 */
-	private List<Integer> currentVolume = new ArrayList<>();
-	
-	/**
-	 * Current note velocity, for each midi track.
-	 */
-	private List<Integer> currentVelocity = new ArrayList<>();
-	
-	/**
-	 * Current expression value, for each midi track.
-	 */
-	private List<Integer> currentExpression = new ArrayList<>();
-	
-	/**
-	 * Midi track number currently being processed.
-	 */
-	private int currentTrackNumber;
 	
 	/**
 	 * Construct a new MIDI to MML converter.
@@ -425,11 +387,7 @@ public class Midi2MML {
 		// reset subsystems
 		MMLNoteConverter noteConv = new MMLNoteConverter(mmlSymbol, seq.getResolution(), maxDots);
 		
-		for(int i = 0; i < trackCount; i++) {
-			currentVolume.add(127);
-			currentVelocity.add(127);
-			currentExpression.add(127);
-		}
+		fixEvents(seq);
 		
 		// convert tracks at the same time
 		// reading tracks one by one would be simpler than the tick-based loop,
@@ -438,8 +396,6 @@ public class Midi2MML {
 		boolean mmlFinished = false;
 		while(!mmlFinished) {
 			for(int trackIndex = 0; trackIndex < trackCount; trackIndex++) {
-				currentTrackNumber = trackIndex;
-				
 				Midi2MMLTrack mmlTrack = mmlTracks[trackIndex];
 				Track track = seq.getTracks()[trackIndex];
 				List<MidiNote> midiNotes = midiTrackNotes.get(trackIndex);
@@ -471,7 +427,7 @@ public class Midi2MML {
 					List<MMLEvent> mmlEvents = new ArrayList<>();
 					long mmlLastTick = mmlTrack.getTick();
 					int mmlLastNoteNumber = mmlTrack.getNoteNumber();
-					boolean mmlKeepCurrentNote = (mmlLastNoteNumber != MMLNoteConverter.KEY_REST);
+					
 					if(event.getMessage() instanceof ShortMessage) {
 						ShortMessage message = (ShortMessage) event.getMessage();
 						
@@ -598,17 +554,16 @@ public class Midi2MML {
 								
 								mmlTrack.setTick(mmlLastTick + length);
 								mmlTrack.setNoteNumber(MMLNoteConverter.KEY_REST);
-								mmlKeepCurrentNote = false;
 							}
 						} else if(message.getCommand() == ShortMessage.NOTE_ON) {
 							int noteNumber = message.getData1();
 							int noteOctave = noteNumber / 12 - 2;
 							
 							int velocity = message.getData2();
-							if(velocity != currentVelocity.get(currentTrackNumber)) {
-								currentVelocity.set(currentTrackNumber, velocity);
-								addVolumeEvent(mmlEvents, currentVolume.get(currentTrackNumber), velocity,
-										currentExpression.get(currentTrackNumber));
+							if(velocity != mmlTrack.getCurrentVelocity()) {
+								mmlTrack.setCurrentVelocity(velocity);
+								addVolumeEvent(mmlEvents, mmlTrack.getCurrentVolume(), velocity,
+										mmlTrack.getCurrentExpression());
 							}
 							
 							// write some initialization for the first note
@@ -626,24 +581,39 @@ public class Midi2MML {
 							// remember new note
 							mmlTrack.setTick(tick);
 							mmlTrack.setNoteNumber(noteNumber);
-							mmlKeepCurrentNote = false;
 							
 							currNoteIndex[trackIndex] = noteIndex[trackIndex];
 							noteIndex[trackIndex]++;
+							
+							// Find next NOTE_OFF message to compute note length
+							long currentNoteLastTick = track.ticks();
+							for(int j = mmlTrack.getMidiEventIndex(); j < track.size(); j++) {
+								MidiEvent e = track.get(j);
+								if(e.getMessage() instanceof ShortMessage) {
+									ShortMessage sm = (ShortMessage) e.getMessage();
+									if(sm.getCommand() == ShortMessage.NOTE_OFF) {
+										currentNoteLastTick = e.getTick();
+										break;
+									}
+								}
+							}
+							mmlTrack.setCurrentNoteLastTick(currentNoteLastTick);
 						} else {
 							List<MMLEvent> newMML = convertMidiEventToMML(event, mmlTrack);
 							if(!newMML.isEmpty()) {
 								mmlEvents.addAll(newMML);
-								if(tick >= mmlLastTick)
+								if(tick >= mmlLastTick) {
 									mmlTrack.setTick(tick);
+								}
 							}
 						}
 					} else {
 						List<MMLEvent> newMML = convertMidiEventToMML(event, mmlTrack);
 						if(!newMML.isEmpty()) {
 							mmlEvents.addAll(newMML);
-							if(tick >= mmlLastTick)
+							if(tick >= mmlLastTick) {
 								mmlTrack.setTick(tick);
+							}
 						}
 					}
 					
@@ -710,7 +680,8 @@ public class Midi2MML {
 							
 							mmlTrack.add(new MMLEvent(
 									noteConv.getNote((int) (mmlTrack.getTick() - mmlLastTick), mmlLastNoteNumber)));
-							if(mmlKeepCurrentNote) {
+							
+							if(tick < mmlTrack.getCurrentNoteLastTick()) {
 								mmlTrack.add(new MMLEvent(mmlSymbol.getTie()));
 							}
 							
@@ -774,7 +745,7 @@ public class Midi2MML {
 		
 		sb.append(LINE_SEPARATOR + "; Pan macros" + LINE_SEPARATOR);
 		for(int pan : pannings) {
-			int y = Utils.getClosestValue(panValues, pan);
+			int y = Utils.getClosestValue(SMWTables.PAN_TABLE, pan);
 			String macro = String.format("\"Y%02X\t= %s%d\"%s", pan, mmlSymbol.getPan(), y, LINE_SEPARATOR);
 			sb.append(macro);
 		}
@@ -783,7 +754,7 @@ public class Midi2MML {
 		for(Triple<Integer, Integer, Integer> volume : volumes) {
 			double coeff = ((double) volume.x / 127.0) * ((double) volume.y / 127.0) * ((double) volume.z / 127.0);
 			int index = (int) Math.round(77.0 * coeff);
-			int v = volumeValues[index];
+			int v = SMWTables.VOLUME_TABLE[index];
 			String macro = String.format("\"V%02XQ%02XE%02X\t= %s%d\"%s", volume.x, volume.y, volume.z,
 					mmlSymbol.getVolume(), v, LINE_SEPARATOR);
 			sb.append(macro);
@@ -968,7 +939,7 @@ public class Midi2MML {
 				if(!instruments.contains(instr)) {
 					instruments.add(instr);
 				}
-				String sInstr = String.format("%02X", instr) + space;
+				String sInstr = String.format("%02X%s", instr, space);
 				mmlEvents.add(new MMLEvent(mmlSymbol.getInstrumentMacro(), new String[]{sInstr}));
 				break;
 			case ShortMessage.CONTROL_CHANGE: // Volume/pan change
@@ -976,10 +947,10 @@ public class Midi2MML {
 				switch(type) {
 				case 0x07: // Volume
 					int volume = message.getData2();
-					if(volume != currentVolume.get(currentTrackNumber)) {
-						currentVolume.set(currentTrackNumber, volume);
-						addVolumeEvent(mmlEvents, volume, currentVelocity.get(currentTrackNumber),
-								currentExpression.get(currentTrackNumber));
+					if(volume != mmlTrack.getCurrentVolume()) {
+						mmlTrack.setCurrentVolume(volume);
+						addVolumeEvent(mmlEvents, volume, mmlTrack.getCurrentVelocity(),
+								mmlTrack.getCurrentExpression());
 					}
 					break;
 				case 0x0A: // Pan
@@ -987,7 +958,7 @@ public class Midi2MML {
 					if(!pannings.contains(pan)) {
 						pannings.add(pan);
 					}
-					String sPan = String.format("%02X", pan) + space;
+					String sPan = String.format("%02X%s", pan, space);
 					mmlEvents.add(new MMLEvent(mmlSymbol.getPanMacro(), new String[]{sPan}));
 					break;
 				case 0x0B: // Expression
@@ -995,10 +966,10 @@ public class Midi2MML {
 						break;
 					}
 					int expression = message.getData2();
-					if(expression != currentExpression.get(currentTrackNumber)) {
-						currentExpression.set(currentTrackNumber, expression);
-						addVolumeEvent(mmlEvents, currentVolume.get(currentTrackNumber),
-								currentVelocity.get(currentTrackNumber), expression);
+					if(expression != mmlTrack.getCurrentExpression()) {
+						mmlTrack.setCurrentExpression(expression);
+						addVolumeEvent(mmlEvents, mmlTrack.getCurrentVolume(), mmlTrack.getCurrentVelocity(),
+								expression);
 					}
 					break;
 				default:
@@ -1042,8 +1013,70 @@ public class Midi2MML {
 			volumes.add(newTriple);
 		}
 		String space = putSpaces ? " " : "";
-		String sVol = String.format("%02XQ%02XE%02X", volume, velocity, expression) + space;
+		String sVol = String.format("%02XQ%02XE%02X%s", volume, velocity, expression, space);
 		mmlEvents.add(new MMLEvent(mmlSymbol.getVolumeMacro(), new String[]{sVol}));
+	}
+	
+	/**
+	 * This method rearranges the messages in all the tracks so that non-note
+	 * messages never happen at the same time as a NOTE_OFF message (they get moved
+	 * to the position of the next NOTE_ON message). This fixes an issue where
+	 * having such an event and a NOTE_OFF message would result in a tied note
+	 * rather than a rest in the resulting MML.
+	 * 
+	 * @param seq
+	 */
+	private void fixEvents(Sequence seq) {
+		for(Track track : seq.getTracks()) {
+			for(int j = 0; j < track.size(); j++) {
+				MidiEvent e = track.get(j);
+				if(e.getMessage() instanceof ShortMessage) {
+					ShortMessage sm = (ShortMessage) e.getMessage();
+					// For every NOTE_OFF message...
+					if(sm.getCommand() == ShortMessage.NOTE_OFF
+							|| sm.getCommand() == ShortMessage.NOTE_ON && sm.getData1() == 0) {
+						// Find the next NOTE_ON message, and save its position within the track.
+						long currentTick = e.getTick();
+						long newTick = currentTick;
+						for(int k = j + 1; k < track.size(); k++) {
+							MidiEvent e2 = track.get(k);
+							if(e2.getMessage() instanceof ShortMessage) {
+								ShortMessage sm2 = (ShortMessage) e2.getMessage();
+								if(sm2.getCommand() == ShortMessage.NOTE_ON && e2.getTick() >= currentTick) {
+									newTick = e2.getTick();
+									break;
+								}
+							}
+						}
+						if(newTick == currentTick) {
+							continue;
+						}
+						// Find all non-NOTE_ON/NOTE_OFF messages that happen at the same time of the
+						// NOTE_OFF message,
+						// and move them to the position of the next NOTE_ON message.
+						List<MidiEvent> removeEvents = new ArrayList<>();
+						List<MidiEvent> addEvents = new ArrayList<>();
+						for(int k = 0; k < track.size(); k++) {
+							MidiEvent e2 = track.get(k);
+							if(e2.getTick() == currentTick && e2.getMessage() instanceof ShortMessage) {
+								ShortMessage sm2 = (ShortMessage) e2.getMessage();
+								int c = sm2.getCommand();
+								if(c != ShortMessage.NOTE_ON && c != ShortMessage.NOTE_OFF) {
+									removeEvents.add(e2);
+									MidiEvent newEvent = new MidiEvent(sm2, newTick);
+									addEvents.add(newEvent);
+								}
+							}
+						}
+						
+						for(int k = 0; k < removeEvents.size(); k++) {
+							track.remove(removeEvents.get(k));
+							track.add(addEvents.get(k));
+						}
+					}
+				}
+			}
+		}
 	}
 	
 	/**

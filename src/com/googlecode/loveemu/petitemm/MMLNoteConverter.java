@@ -105,9 +105,7 @@ public class MMLNoteConverter {
 		StringBuilder sb = new StringBuilder();
 		while(len > (tpqn * 8)) {
 			sb.append(notes[tpqn * 8].getText(key));
-			if(key != MMLNoteConverter.KEY_REST) {
-				sb.append(mmlSymbol.getTie());
-			}
+			sb.append(mmlSymbol.getTie());
 			len -= tpqn * 8;
 		}
 		sb.append(notes[len].getText(key));

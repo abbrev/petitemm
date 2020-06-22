@@ -59,6 +59,12 @@ class Midi2MMLTrack {
 	 */
 	private MMLSymbol mmlSymbol;
 	
+	private long currentNoteLastTick = 0;
+	
+	private int currentVolume = 127;
+	private int currentVelocity = 127;
+	private int currentExpression = 127;
+	
 	/**
 	 * Construct new MML track conversion object.
 	 * 
@@ -233,6 +239,47 @@ class Midi2MMLTrack {
 		this.finished = finished;
 	}
 	
+	public long getCurrentNoteLastTick() {
+		return currentNoteLastTick;
+	}
+	
+	public void setCurrentNoteLastTick(long currentNoteLastTick) {
+		this.currentNoteLastTick = currentNoteLastTick;
+	}
+	
+	/**
+	 * 
+	 * @return the current track volume.
+	 */
+	public int getCurrentVolume() {
+		return currentVolume;
+	}
+	
+	/**
+	 * Sets the current track volume.
+	 * 
+	 * @param currentVolume
+	 */
+	public void setCurrentVolume(int currentVolume) {
+		this.currentVolume = currentVolume;
+	}
+	
+	public int getCurrentVelocity() {
+		return currentVelocity;
+	}
+	
+	public void setCurrentVelocity(int currentVelocity) {
+		this.currentVelocity = currentVelocity;
+	}
+	
+	public int getCurrentExpression() {
+		return currentExpression;
+	}
+	
+	public void setCurrentExpression(int currentExpression) {
+		this.currentExpression = currentExpression;
+	}
+	
 	/**
 	 * Appends the specified MML event.
 	 * 
@@ -275,7 +322,7 @@ class Midi2MMLTrack {
 			for(int i = 0; i < mmlEventList.size(); i++) {
 				skip = false;
 				MMLEvent event = mmlEventList.get(i);
-				if(addTie && event.getCommand().matches("[abcdefgr][0-9]*[+-]?")) {
+				if(addTie && event.getCommand().matches("[abcdefgr][+-]?[\\d]*[\\.]*")) {
 					mmlBuffer.append(mmlSymbol.getTie());
 					addTie = false;
 					mmlBuffer.append(event.toString().replaceAll("[abcdefgr][+-]?", ""));
@@ -315,7 +362,7 @@ class Midi2MMLTrack {
 				if(command.equals(mmlSymbol.getVolumeMacro())) {
 					// If there's another volume command, we don't need to write the current one
 					return true;
-				} else if(command.matches("[abcdefg][0-9]*[+-]?")) {
+				} else if(command.matches("[abcdefg][+-]?[\\d]*[\\.]*")) {
 					// If there's a note (non-rest) next, we have to write the volume command
 					return false;
 				}
@@ -328,7 +375,7 @@ class Midi2MMLTrack {
 		for(int j = i + 1; j < mmlEventList.size(); j++) {
 			String command = mmlEventList.get(j).getCommand();
 			if(!command.equals(" ")) {
-				return !command.matches("[abcdefgr][0-9]*[+-]?");
+				return !command.matches("[abcdefgr][+-]?[\\d]*[\\.]*");
 			}
 		}
 		return false;
