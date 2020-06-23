@@ -358,7 +358,6 @@ class Midi2MMLTrack {
 	private boolean checkIfVolumeNext(int i) {
 		for(int j = i + 1; j < mmlEventList.size(); j++) {
 			String command = mmlEventList.get(j).getCommand();
-			System.out.println(command);
 			if(!command.equals(" ")) {
 				if(command.equals(mmlSymbol.getVolumeMacro())) {
 					// If there's another volume command, we don't need to write the current one
