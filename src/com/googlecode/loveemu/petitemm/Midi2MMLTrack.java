@@ -358,11 +358,12 @@ class Midi2MMLTrack {
 	private boolean checkIfVolumeNext(int i) {
 		for(int j = i + 1; j < mmlEventList.size(); j++) {
 			String command = mmlEventList.get(j).getCommand();
+			System.out.println(command);
 			if(!command.equals(" ")) {
 				if(command.equals(mmlSymbol.getVolumeMacro())) {
 					// If there's another volume command, we don't need to write the current one
 					return true;
-				} else if(command.matches("[o\\d+]|[[<>]+]|[[abcdefg\\^][+-]?[\\d]*[\\.]*]")) {
+				} else if(command.matches("[o\\d+]|[[<>]+]|[[abcdefg\\^][+-]?[\\d]*[\\.]*][[\\^][\\d]*[\\.]*]*")) {
 					// If there's a note (non-rest) next, we have to write the volume command
 					return false;
 				}
