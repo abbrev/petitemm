@@ -362,7 +362,7 @@ class Midi2MMLTrack {
 				if(command.equals(mmlSymbol.getVolumeMacro())) {
 					// If there's another volume command, we don't need to write the current one
 					return true;
-				} else if(command.matches("[abcdefg][+-]?[\\d]*[\\.]*")) {
+				} else if(command.matches("[o\\d+]|[[<>]+]|[[abcdefg\\^][+-]?[\\d]*[\\.]*]")) {
 					// If there's a note (non-rest) next, we have to write the volume command
 					return false;
 				}
