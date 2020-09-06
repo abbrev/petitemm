@@ -287,7 +287,7 @@ public class MMLNoteConverter {
 				// add new note
 				notes[tick] = new MMLNoteInfo(mmlSymbol, mml.toString());
 				noteLengths.set(tick, dottedNoteLength);
-				noteLengthsDotsDisassembled.set(tick, new ArrayList<Integer>(dottedNoteLengthDotsDisassembled));
+				noteLengthsDotsDisassembled.set(tick, new ArrayList<>(dottedNoteLengthDotsDisassembled));
 				singleNotes[tick] = notes[tick];
 				singleNoteLengths.set(tick, dottedNoteLength);
 				maxDotCountUsed = dot;
