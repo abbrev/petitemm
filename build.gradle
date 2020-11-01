@@ -26,7 +26,7 @@ compileJava {
 jar {
     archiveFileName = 'PetiteMM.jar'
     manifest {
-        attributes 'Implementation-Title': 'PetiteMM', 'Implementation-Version': 1.1
+        attributes 'Implementation-Title': 'PetiteMM', 'Implementation-Version': 1.2
         attributes 'Main-Class': 'PetiteMM'
     }
 }

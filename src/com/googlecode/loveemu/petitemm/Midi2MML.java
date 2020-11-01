@@ -227,8 +227,7 @@ public class Midi2MML {
 	 */
 	public void setMaxDots(int mmlMaxDotCount) {
 		if (mmlMaxDotCount < -1)
-			throw new IllegalArgumentException(
-					"Maximum dot count must be a positive number or -1.");
+			throw new IllegalArgumentException("Maximum dot count must be a positive number or -1.");
 		this.maxDots = mmlMaxDotCount;
 	}
 
@@ -245,8 +244,7 @@ public class Midi2MML {
 	 * Set whether the quantization logic is enabled.
 	 * 
 	 * @param quantizationEnabled
-	 *            true if adjust note length for simplifying the conversion
-	 *            result.
+	 *            true if adjust note length for simplifying the conversion result.
 	 */
 	public void setQuantizationEnabled(boolean quantizationEnabled) {
 		this.quantizationEnabled = quantizationEnabled;
@@ -302,6 +300,24 @@ public class Midi2MML {
 	public void setMultiplyVolumes(double m) {
 		this.multiplyVolumes = m;
 	}
+	
+	/**
+	 * Get triplet preference.
+	 * 
+	 * @return true if replace triple single notes to triplet.
+	 */
+	public boolean getTripletPreference() {
+		return useTriplet;
+	}
+
+	/**
+	 * Set triplet preference.
+	 * 
+	 * @return true if replace triple single notes to triplet.
+	 */
+	public void setTripletPreference(boolean useTriplet) {
+		this.useTriplet = useTriplet;
+	}
 
 	/**
 	 * Get TPQN of target MML.
@@ -340,8 +356,7 @@ public class Midi2MML {
 	 *            Minimum note length. (must be power of 2)
 	 */
 	public void setQuantizePrecision(int quantizePrecision) {
-		if (quantizePrecision != QUANTIZE_PRECISION_AS_IS
-				&& (quantizePrecision & (quantizePrecision - 1)) != 0)
+		if (quantizePrecision != QUANTIZE_PRECISION_AS_IS && (quantizePrecision & (quantizePrecision - 1)) != 0)
 			throw new IllegalArgumentException("Quantize precision must be power of 2.");
 		this.quantizePrecision = quantizePrecision;
 	}
@@ -360,8 +375,7 @@ public class Midi2MML {
 	 * @throws InvalidMidiDataException
 	 *             throws if unexpected MIDI event is appeared.
 	 */
-	public void writeMML(Sequence seq, StringBuilder writer)
-			throws IOException, InvalidMidiDataException {
+	public void writeMML(Sequence seq, StringBuilder writer) throws IOException, InvalidMidiDataException {
 		// sequence must be tick-based
 		if (seq.getDivisionType() != Sequence.PPQ) {
 			throw new UnsupportedOperationException("SMPTE is not supported.");
@@ -449,11 +463,11 @@ public class Midi2MML {
 
 					// dump for debug
 					if (DEBUG_DUMP) {
-						System.out.format("MidiEvent: track=%d,tick=%d<%s>,message=%s%n",
-								trackIndex, event.getTick(),
-								MidiTimeSignature.getMeasureTickString(event.getTick(),
-										timeSignatures, seq.getResolution()),
-								byteArrayToString(event.getMessage().getMessage()));
+						System.out
+								.format("MidiEvent: track=%d,tick=%d<%s>,message=%s%n", trackIndex, event.getTick(),
+										MidiTimeSignature.getMeasureTickString(event.getTick(), timeSignatures,
+												seq.getResolution()),
+										byteArrayToString(event.getMessage().getMessage()));
 					}
 
 					// branch by event type for more detailed access
@@ -465,10 +479,13 @@ public class Midi2MML {
 						ShortMessage message = (ShortMessage) event.getMessage();
 
 						if (message.getCommand() == ShortMessage.NOTE_OFF
-								|| (message.getCommand() == ShortMessage.NOTE_ON
-										&& message.getData2() == 0)) {
-							MidiNote midiNextNote = (currNoteIndex[trackIndex] + 1 < midiNotes
-									.size()) ? midiNotes.get(currNoteIndex[trackIndex] + 1) : null;
+								|| (message.getCommand() == ShortMessage.NOTE_ON && message.getData2() == 0)) {
+							MidiNote midiNextNote = (currNoteIndex[trackIndex] + 1 < midiNotes.size())
+									? midiNotes.get(currNoteIndex[trackIndex] + 1)
+									: null;
+							
+							mmlTrack.setMidNote(false);
+									
 							long minLength = tick - mmlLastTick;
 							long maxLength = ((midiNextNote != null)
 									? midiNextNote.getTime()
@@ -476,16 +493,14 @@ public class Midi2MML {
 							if (message.getData1() == mmlTrack.getNoteNumber() && minLength != 0) {
 								long length = minLength;
 								if (quantizationEnabled) {
-									long wholeNoteCount = (minLength - 1)
-											/ (seq.getResolution() * 4);
+									long wholeNoteCount = (minLength - 1) / (seq.getResolution() * 4);
 
 									// remove whole notes temporarily
 									minLength -= (seq.getResolution() * 4) * wholeNoteCount;
 									maxLength -= (seq.getResolution() * 4) * wholeNoteCount;
 
 									// find the nearest 2^n note
-									// minLength/nearPow2 is almost always in
-									// [0.5,1.0]
+									// minLength/nearPow2 is almost always in [0.5,1.0]
 									// (almost, because nearPow2 may have slight
 									// error at a very short note)
 									// nearPow2 can be greater than maxLength
@@ -493,8 +508,7 @@ public class Midi2MML {
 									while (nearPow2 / 2 >= minLength)
 										nearPow2 /= 2;
 
-									List<Double> rateCandidates = new ArrayList<>(
-											Arrays.asList(0.5, 1.0));
+									List<Double> rateCandidates = new ArrayList<>(Arrays.asList(0.5, 1.0));
 									int maxDotCount = (maxDots != -1) ? maxDots : Integer.MAX_VALUE;
 									double dottedNoteRate = 0.5;
 									for (int dot = 1; dot <= maxDotCount; dot++) {
@@ -502,10 +516,7 @@ public class Midi2MML {
 											break;
 
 										dottedNoteRate += Math.pow(0.5, dot + 1.0);
-										rateCandidates.add(dottedNoteRate); // dotted
-																			// note
-																			// (0.75,
-																			// 0.875...)
+										rateCandidates.add(dottedNoteRate); // dotted note (0.75, 0.875...)
 									}
 									if (nearPow2 * 2 % 3 == 0)
 										rateCandidates.add(2.0 / 3.0); // triplet
@@ -520,12 +531,10 @@ public class Midi2MML {
 												firstItem = false;
 											else
 												ratesBuffer.append(",");
-											ratesBuffer
-													.append(String.format("%.3f", rateCandidate));
+											ratesBuffer.append(String.format("%.3f", rateCandidate));
 										}
 										ratesBuffer.append("]");
-										System.out.println(
-												"rateCandidates=" + ratesBuffer.toString());
+										System.out.println("rateCandidates=" + ratesBuffer.toString());
 									}
 
 									double rateLowerLimit = (double) minLength / nearPow2;
@@ -533,9 +542,8 @@ public class Midi2MML {
 
 									long quantizeNoteLength = 0;
 									if (quantizePrecision != QUANTIZE_PRECISION_AS_IS) {
-										quantizeNoteLength = (seq.getResolution() * 4)
-												/ quantizePrecision; // can have
-																		// error
+										// can have error
+										quantizeNoteLength = (seq.getResolution() * 4) / quantizePrecision;
 									}
 
 									double rateNearest = 0.0;
@@ -543,20 +551,15 @@ public class Midi2MML {
 									for (double rateCandidate : rateCandidates) {
 										rateCandidate = Math.min(rateCandidate, rateUpperLimit);
 
-										double rateDistance = Math
-												.abs(rateLowerLimit - rateCandidate);
+										double rateDistance = Math.abs(rateLowerLimit - rateCandidate);
 										if (rateDistance <= rateBestDistance) {
 											boolean rateRequiresUpdate = true;
-											if (nearPow2 >= quantizeNoteLength
-													&& rateCandidate < rateUpperLimit) {
-												long noteLengthCandidate = Math
-														.round(nearPow2 * rateCandidate);
+											if (nearPow2 >= quantizeNoteLength && rateCandidate < rateUpperLimit) {
+												long noteLengthCandidate = Math.round(nearPow2 * rateCandidate);
 												List<Integer> noteLengths = noteConv
-														.getPrimitiveNoteLengths(
-																(int) noteLengthCandidate, true);
+														.getPrimitiveNoteLengths((int) noteLengthCandidate, true);
 												rateRequiresUpdate = (noteLengths
-														.get(noteLengths.size()
-																- 1) >= quantizeNoteLength);
+														.get(noteLengths.size() - 1) >= quantizeNoteLength);
 											}
 											if (rateRequiresUpdate) {
 												rateNearest = rateCandidate;
@@ -570,16 +573,14 @@ public class Midi2MML {
 
 									if (length < minLength) {
 										List<Integer> restLengths = noteConv
-												.getPrimitiveNoteLengths((int) (maxLength - length),
-														false);
+												.getPrimitiveNoteLengths((int) (maxLength - length), false);
 										for (int i = restLengths.size() - 1; i >= 0; i--) {
 											int restLength = restLengths.get(i);
 											if (length + restLength <= minLength) {
 												length += restLength;
 											} else {
 												long oldDistance = minLength - length;
-												long newDistance = (length + restLength)
-														- minLength;
+												long newDistance = (length + restLength) - minLength;
 												if (newDistance <= oldDistance)
 													length += restLength;
 												break;
@@ -593,16 +594,13 @@ public class Midi2MML {
 										System.out.format(
 												"Note Off: track=%d,tick=%d<%s>,mmlLastTick=%d<%s>,length=%d,minLength=%d,maxLength=%d,nearPow2=%d,rateLimit=[%.2f,%.2f],rateNearest=%.2f,next=%s%n",
 												trackIndex, tick,
-												MidiTimeSignature.getMeasureTickString(tick,
-														timeSignatures, seq.getResolution()),
+												MidiTimeSignature.getMeasureTickString(tick, timeSignatures,
+														seq.getResolution()),
 												mmlLastTick,
-												MidiTimeSignature.getMeasureTickString(mmlLastTick,
-														timeSignatures, seq.getResolution()),
-												length, minLength, maxLength, nearPow2,
-												rateLowerLimit, rateUpperLimit, rateNearest,
-												(midiNextNote != null)
-														? midiNextNote.toString()
-														: "null");
+												MidiTimeSignature.getMeasureTickString(mmlLastTick, timeSignatures,
+														seq.getResolution()),
+												length, minLength, maxLength, nearPow2, rateLowerLimit, rateUpperLimit,
+												rateNearest, (midiNextNote != null) ? midiNextNote.toString() : "null");
 									}
 								}
 
@@ -671,45 +669,38 @@ public class Midi2MML {
 						}
 					}
 
-					// final event,
-					// seek to the last whether the last event has been
-					// dispatched.
+					// final event, seek to the last whether the last event has been dispatched.
 					if (mmlTrack.getMidiEventIndex() == track.size() && !mmlTrack.isEmpty()
 							&& mmlTrack.getTick() < tick) {
 						mmlTrack.setTick(tick);
 					}
 
-					// timing changed,
-					// write the last note/rest and finish the seek
+					// timing changed, write the last note/rest and finish the seek
 					if (mmlTrack.getTick() != mmlLastTick) {
 						if (DEBUG_DUMP) {
-							System.out.format("Timing: track=%d,%d<%s> -> %d<%s>%n", trackIndex,
-									mmlLastTick,
-									MidiTimeSignature.getMeasureTickString(mmlLastTick,
-											timeSignatures, seq.getResolution()),
-									mmlTrack.getTick(),
-									MidiTimeSignature.getMeasureTickString(mmlTrack.getTick(),
+							System.out.format("Timing: track=%d,%d<%s> -> %d<%s>%n", trackIndex, mmlLastTick,
+									MidiTimeSignature.getMeasureTickString(mmlLastTick, timeSignatures,
+											seq.getResolution()),
+									mmlTrack.getTick(), MidiTimeSignature.getMeasureTickString(mmlTrack.getTick(),
 											timeSignatures, seq.getResolution()));
 						}
 
 						if (mmlLastNoteNumber == MMLNoteConverter.KEY_REST) {
-							List<Integer> lengths = noteConv.getPrimitiveNoteLengths(
-									(int) (mmlTrack.getTick() - mmlLastTick), false);
+							List<Integer> lengths = noteConv
+									.getPrimitiveNoteLengths((int) (mmlTrack.getTick() - mmlLastTick), false);
 							int totalLength = 0;
 							for (int length : lengths) {
 								totalLength += length;
-								mmlTrack.add(
-										new MMLEvent(noteConv.getNote(length, mmlLastNoteNumber)));
+								mmlTrack.add(new MMLEvent(noteConv.getNote(length, mmlLastNoteNumber)));
 
 								if (putSpaces) {
 									mmlTrack.add(new MMLEvent(" "));
 								}
 
-								int lastMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick,
-										timeSignatures, seq.getResolution());
-								int currentMeasure = MidiTimeSignature.getMeasureByTick(
-										mmlLastTick + totalLength, timeSignatures,
+								int lastMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick, timeSignatures,
 										seq.getResolution());
+								int currentMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick + totalLength,
+										timeSignatures, seq.getResolution());
 								if (currentMeasure != lastMeasure) {
 									mmlTrack.add(new MMLEvent(LINE_SEPARATOR));
 									mmlTrack.setMeasure(currentMeasure);
@@ -720,40 +711,40 @@ public class Midi2MML {
 							int noteOctave = mmlLastNoteNumber / 12 - 2;
 
 							while (mmlOctave < noteOctave) {
-								mmlTrack.add(new MMLEvent(!octaveReversed
-										? mmlSymbol.getOctaveUp()
-										: mmlSymbol.getOctaveDown()));
+								mmlTrack.add(new MMLEvent(
+										!octaveReversed ? mmlSymbol.getOctaveUp() : mmlSymbol.getOctaveDown()));
 								mmlOctave++;
 								if (putSpaces && (mmlOctave == noteOctave)) {
 									mmlTrack.add(new MMLEvent(" "));
 								}
 							}
 							while (mmlOctave > noteOctave) {
-								mmlTrack.add(new MMLEvent(!octaveReversed
-										? mmlSymbol.getOctaveDown()
-										: mmlSymbol.getOctaveUp()));
+								mmlTrack.add(new MMLEvent(
+										!octaveReversed ? mmlSymbol.getOctaveDown() : mmlSymbol.getOctaveUp()));
 								mmlOctave--;
 								if (putSpaces && (mmlOctave == noteOctave)) {
 									mmlTrack.add(new MMLEvent(" "));
 								}
 							}
 							mmlTrack.setOctave(noteOctave);
-
-							mmlTrack.add(new MMLEvent(noteConv.getNote(
-									(int) (mmlTrack.getTick() - mmlLastTick), mmlLastNoteNumber)));
-
-							if (tick < mmlTrack.getCurrentNoteLastTick()) {
-								mmlTrack.add(new MMLEvent(mmlSymbol.getTie()));
+							
+							if (mmlTrack.getMidNote() && tick < mmlTrack.getCurrentNoteLastTick()) {
+								mmlEvents.add(new MMLEvent(mmlSymbol.getTie()));
 							}
+							
+							mmlTrack.setMidNote(true);
+							
+							mmlTrack.add(new MMLEvent(
+									noteConv.getNote((int) (mmlTrack.getTick() - mmlLastTick), mmlLastNoteNumber)));
 
 							if (putSpaces) {
 								mmlTrack.add(new MMLEvent(" "));
 							}
 
-							int lastMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick,
-									timeSignatures, seq.getResolution());
-							int currentMeasure = MidiTimeSignature.getMeasureByTick(
-									mmlTrack.getTick(), timeSignatures, seq.getResolution());
+							int lastMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick, timeSignatures,
+									seq.getResolution());
+							int currentMeasure = MidiTimeSignature.getMeasureByTick(mmlTrack.getTick(), timeSignatures,
+									seq.getResolution());
 							if (currentMeasure != lastMeasure) {
 								mmlTrack.add(new MMLEvent(LINE_SEPARATOR));
 								mmlTrack.setMeasure(currentMeasure);
@@ -800,16 +791,14 @@ public class Midi2MML {
 		sb.append("; Instrument macros" + LINE_SEPARATOR);
 		int i = 30;
 		for (int instr : instruments) {
-			String macro = String.format("\"I%02X\t= %s%d\"%s", instr, mmlSymbol.getInstrument(),
-					i++, LINE_SEPARATOR);
+			String macro = String.format("\"I%02X\t= %s%d\"%s", instr, mmlSymbol.getInstrument(), i++, LINE_SEPARATOR);
 			sb.append(macro);
 		}
 
 		sb.append(LINE_SEPARATOR + "; Pan macros" + LINE_SEPARATOR);
 		for (int pan : pannings) {
 			int y = Utils.getClosestValue(SMWTables.PAN_TABLE, pan);
-			String macro = String.format("\"Y%02X\t= %s%d\"%s", pan, mmlSymbol.getPan(), y,
-					LINE_SEPARATOR);
+			String macro = String.format("\"Y%02X\t= %s%d\"%s", pan, mmlSymbol.getPan(), y, LINE_SEPARATOR);
 			sb.append(macro);
 		}
 
@@ -829,8 +818,8 @@ public class Midi2MML {
 			int v = SMWTables.VOLUME_TABLE[index];
 			String macro;
 			if (amplify != 0) {
-				macro = String.format("\"V%02XQ%02XE%02X\t= %s%d $fa$03$%02x\"%s", volume.x,
-						volume.y, volume.z, mmlSymbol.getVolume(), v, amplify, LINE_SEPARATOR);
+				macro = String.format("\"V%02XQ%02XE%02X\t= %s%d $fa$03$%02x\"%s", volume.x, volume.y, volume.z,
+						mmlSymbol.getVolume(), v, amplify, LINE_SEPARATOR);
 			} else {
 				macro = String.format("\"V%02XQ%02XE%02X\t= %s%d\"%s", volume.x, volume.y, volume.z,
 						mmlSymbol.getVolume(), v, LINE_SEPARATOR);
@@ -864,8 +853,7 @@ public class Midi2MML {
 					ShortMessage message = (ShortMessage) event.getMessage();
 
 					if (message.getCommand() == ShortMessage.NOTE_OFF
-							|| (message.getCommand() == ShortMessage.NOTE_ON
-									&& message.getData2() == 0)) {
+							|| (message.getCommand() == ShortMessage.NOTE_ON && message.getData2() == 0)) {
 						// search from head, for overlapping notes
 						ListIterator<MidiNote> iter = midiNotes.listIterator();
 						while (iter.hasNext()) {
@@ -877,8 +865,8 @@ public class Midi2MML {
 							}
 						}
 					} else if (message.getCommand() == ShortMessage.NOTE_ON) {
-						midiNotes.add(new MidiNote(message.getChannel(), event.getTick(), -1,
-								message.getData1(), message.getData2()));
+						midiNotes.add(new MidiNote(message.getChannel(), event.getTick(), -1, message.getData1(),
+								message.getData2()));
 					}
 				}
 			}
@@ -888,9 +876,8 @@ public class Midi2MML {
 				}
 				// dump for debug
 				if (DEBUG_DUMP) {
-					System.out.format("[ch%d/%d] Note (%d) len=%d vel=%d%n", note.getChannel(),
-							note.getTime(), note.getNoteNumber(), note.getLength(),
-							note.getVelocity());
+					System.out.format("[ch%d/%d] Note (%d) len=%d vel=%d%n", note.getChannel(), note.getTime(),
+							note.getNoteNumber(), note.getLength(), note.getVelocity());
 				}
 			}
 			midiTrackNotes.add(midiNotes);
@@ -901,14 +888,11 @@ public class Midi2MML {
 	/**
 	 * Get MIDI time signatures from sequence.
 	 * 
-	 * @param seq
-	 *            Input MIDI sequence.
+	 * @param seq Input MIDI sequence.
 	 * @return List of MIDI time signatures.
-	 * @throws InvalidMidiDataException
-	 *             throws if unexpected MIDI event is appeared.
+	 * @throws InvalidMidiDataException if unexpected MIDI event is found.
 	 */
-	private List<MidiTimeSignature> getMidiTimeSignatures(Sequence seq)
-			throws InvalidMidiDataException {
+	private List<MidiTimeSignature> getMidiTimeSignatures(Sequence seq) throws InvalidMidiDataException {
 		List<MidiTimeSignature> timeSignatures = new ArrayList<>();
 
 		final int trackCount = seq.getTracks().length;
@@ -946,8 +930,7 @@ public class Midi2MML {
 						switch (message.getType()) {
 							case MidiUtil.META_TIME_SIGNATURE:
 								if (data.length != 4) {
-									throw new InvalidMidiDataException(
-											"Illegal time signature event.");
+									throw new InvalidMidiDataException("Illegal time signature event.");
 								}
 
 								if (nextMeasureTick - measureLength != tick) {
@@ -965,12 +948,10 @@ public class Midi2MML {
 											"First time signature is not located at the first measure.");
 								}
 
-								MidiTimeSignature newTimeSignature = new MidiTimeSignature(
-										data[0] & 0xff, data[1] & 0xff, measure);
-								int newMeasureLength = newTimeSignature
-										.getLength(seq.getResolution());
-								nextMeasureTick = (nextMeasureTick - measureLength)
-										+ newMeasureLength;
+								MidiTimeSignature newTimeSignature = new MidiTimeSignature(data[0] & 0xff,
+										data[1] & 0xff, measure);
+								int newMeasureLength = newTimeSignature.getLength(seq.getResolution());
+								nextMeasureTick = (nextMeasureTick - measureLength) + newMeasureLength;
 								measureLength = newMeasureLength;
 								measureOfLastSignature = measure;
 								timeSignatures.add(newTimeSignature);
@@ -1031,8 +1012,7 @@ public class Midi2MML {
 						instruments.add(instr);
 					}
 					String sInstr = String.format("%02X%s", instr, space);
-					mmlEvents.add(
-							new MMLEvent(mmlSymbol.getInstrumentMacro(), new String[]{sInstr}));
+					mmlEvents.add(new MMLEvent(mmlSymbol.getInstrumentMacro(), new String[]{sInstr}));
 					break;
 				case ShortMessage.CONTROL_CHANGE: // Volume/pan change
 					int type = message.getData1();
@@ -1051,8 +1031,7 @@ public class Midi2MML {
 								pannings.add(pan);
 							}
 							String sPan = String.format("%02X%s", pan, space);
-							mmlEvents
-									.add(new MMLEvent(mmlSymbol.getPanMacro(), new String[]{sPan}));
+							mmlEvents.add(new MMLEvent(mmlSymbol.getPanMacro(), new String[]{sPan}));
 							break;
 						case 0x0B: // Expression
 							if (noExpression) {
@@ -1061,8 +1040,8 @@ public class Midi2MML {
 							int expression = message.getData2();
 							if (expression != mmlTrack.getCurrentExpression()) {
 								mmlTrack.setCurrentExpression(expression);
-								addVolumeEvent(mmlEvents, mmlTrack.getCurrentVolume(),
-										mmlTrack.getCurrentVelocity(), expression);
+								addVolumeEvent(mmlEvents, mmlTrack.getCurrentVolume(), mmlTrack.getCurrentVelocity(),
+										expression);
 							}
 							break;
 						default:
@@ -1082,19 +1061,15 @@ public class Midi2MML {
 						throw new InvalidMidiDataException("Illegal tempo event.");
 					}
 
-					int usLenOfQN = ((data[0] & 0xff) << 16) | ((data[1] & 0xff) << 8)
-							| (data[2] & 0xff);
+					int usLenOfQN = ((data[0] & 0xff) << 16) | ((data[1] & 0xff) << 8) | (data[2] & 0xff);
 					double bpm = 60000000.0 / usLenOfQN;
 					bpm *= 256.0 / 625.0; // BPM to SNES tempo conversion
-					mmlEvents.add(new MMLEvent(mmlSymbol.getTempo(),
-							new String[]{String.format("%.0f", bpm)}));
+					mmlEvents.add(new MMLEvent(mmlSymbol.getTempo(), new String[]{String.format("%.0f", bpm)}));
 
 					if (putSpaces) {
 						mmlEvents.add(new MMLEvent(" "));
 					}
-
 					break;
-
 				default:
 					break;
 			}
@@ -1102,8 +1077,7 @@ public class Midi2MML {
 		return mmlEvents;
 	}
 
-	private void addVolumeEvent(List<MMLEvent> mmlEvents, int volume, int velocity,
-			int expression) {
+	private void addVolumeEvent(List<MMLEvent> mmlEvents, int volume, int velocity, int expression) {
 		Triple<Integer, Integer, Integer> newTriple = new Triple<>(volume, velocity, expression);
 		if (!volumes.contains(newTriple)) {
 			volumes.add(newTriple);
@@ -1114,11 +1088,9 @@ public class Midi2MML {
 	}
 
 	/**
-	 * This method rearranges the messages in all the tracks so that non-note
-	 * messages never happen at the same time as a NOTE_OFF message (they get
-	 * moved to the position of the next NOTE_ON message). This fixes an issue
-	 * where having such an event and a NOTE_OFF message would result in a tied
-	 * note rather than a rest in the resulting MML.
+	 * This method rearranges the messages in all the tracks so that non-note messages never happen at the same time as
+	 * a NOTE_OFF message (they get moved to the position of the next NOTE_ON message). This fixes an issue where having
+	 * such an event and a NOTE_OFF message would result in a tied note rather than a rest in the resulting MML.
 	 * 
 	 * @param seq
 	 */
@@ -1130,17 +1102,15 @@ public class Midi2MML {
 					ShortMessage sm = (ShortMessage) e.getMessage();
 					// For every NOTE_OFF message...
 					if (sm.getCommand() == ShortMessage.NOTE_OFF
-							|| sm.getCommand() == ShortMessage.NOTE_ON && sm.getData1() == 0) {
-						// Find the next NOTE_ON message, and save its position
-						// within the track.
+							|| (sm.getCommand() == ShortMessage.NOTE_ON && sm.getData1() == 0)) {
+						// Find the next NOTE_ON message, and save its position within the track.
 						long currentTick = e.getTick();
 						long newTick = currentTick;
 						for (int k = j + 1; k < track.size(); k++) {
 							MidiEvent e2 = track.get(k);
 							if (e2.getMessage() instanceof ShortMessage) {
 								ShortMessage sm2 = (ShortMessage) e2.getMessage();
-								if (sm2.getCommand() == ShortMessage.NOTE_ON
-										&& e2.getTick() >= currentTick) {
+								if (sm2.getCommand() == ShortMessage.NOTE_ON && sm2.getData1() != 0 && e2.getTick() >= currentTick) {
 									newTick = e2.getTick();
 									break;
 								}
@@ -1149,17 +1119,13 @@ public class Midi2MML {
 						if (newTick == currentTick) {
 							continue;
 						}
-						// Find all non-NOTE_ON/NOTE_OFF messages that happen at
-						// the same time of the
-						// NOTE_OFF message,
-						// and move them to the position of the next NOTE_ON
-						// message.
+						// Find all non-NOTE_ON/NOTE_OFF messages that happen at the same time of the NOTE_OFF message,
+						// and move them to the position of the next NOTE_ON message.
 						List<MidiEvent> removeEvents = new ArrayList<>();
 						List<MidiEvent> addEvents = new ArrayList<>();
 						for (int k = 0; k < track.size(); k++) {
 							MidiEvent e2 = track.get(k);
-							if (e2.getTick() == currentTick
-									&& e2.getMessage() instanceof ShortMessage) {
+							if (e2.getTick() == currentTick && e2.getMessage() instanceof ShortMessage) {
 								ShortMessage sm2 = (ShortMessage) e2.getMessage();
 								int c = sm2.getCommand();
 								if (c != ShortMessage.NOTE_ON && c != ShortMessage.NOTE_OFF) {
@@ -1178,24 +1144,6 @@ public class Midi2MML {
 				}
 			}
 		}
-	}
-
-	/**
-	 * Get triplet preference.
-	 * 
-	 * @return true if replace triple single notes to triplet.
-	 */
-	public boolean getTripletPreference() {
-		return useTriplet;
-	}
-
-	/**
-	 * Set triplet preference.
-	 * 
-	 * @return true if replace triple single notes to triplet.
-	 */
-	public void setTripletPreference(boolean useTriplet) {
-		this.useTriplet = useTriplet;
 	}
 
 	private String byteArrayToString(byte[] bytes) {

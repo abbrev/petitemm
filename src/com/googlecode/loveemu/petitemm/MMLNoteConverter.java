@@ -13,6 +13,11 @@ public class MMLNoteConverter {
 	public static final int KEY_REST = MMLNoteInfo.KEY_REST;
 	
 	/**
+	 * Constant number for ties.
+	 */
+	public static final int KEY_TIE = MMLNoteInfo.KEY_TIE;
+	
+	/**
 	 * Tick to MML note conversion table.
 	 */
 	private MMLNoteInfo[] notes;
@@ -84,8 +89,7 @@ public class MMLNoteConverter {
 		}
 		sb.append(notes[len].getText());
 		
-		String note = sb.toString();
-		return note.replaceAll("\\^[abcdefgr][+-]?", "^");
+		return sb.toString();
 	}
 	
 	/**
@@ -110,8 +114,7 @@ public class MMLNoteConverter {
 		}
 		sb.append(notes[len].getText(key));
 		
-		String note = sb.toString();
-		return note.replaceAll("\\^[abcdefgr][+-]?", "^");
+		return sb.toString();
 	}
 	
 	/**
@@ -276,7 +279,6 @@ public class MMLNoteConverter {
 				// c6. == c4, for example.
 				if(notes[tick] != null) {
 					break;
-					// continue;
 				}
 				
 				// create length table
@@ -358,10 +360,5 @@ public class MMLNoteConverter {
 			Collections.sort(lengths);
 			Collections.reverse(lengths);
 		}
-		
-		// for (tick = 1; tick < tpqn * 8; tick++)
-		// {
-		// System.out.println("" + tick + "\t" + notes[tick]);
-		// }
 	}
 }

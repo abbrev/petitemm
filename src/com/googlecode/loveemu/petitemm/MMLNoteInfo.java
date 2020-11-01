@@ -8,6 +8,11 @@ public class MMLNoteInfo {
 	public static final int KEY_REST = -1000;
 	
 	/**
+	 * Constant number for ties.
+	 */
+	public static final int KEY_TIE = 42069;
+	
+	/**
 	 * Raw MML text for the note.
 	 */
 	private String text;
@@ -65,8 +70,13 @@ public class MMLNoteInfo {
 	public String getText(int key) {
 		if(text == null) {
 			return null;
+		}
+		text = text.replace(mmlSymbol.getTie() + "$N", mmlSymbol.getTie());
+		
+		if(key == KEY_TIE) {
+			return text.replace("$N", mmlSymbol.getTie());
 		} else if(key == KEY_REST) {
-			return text.replaceAll("\\$N", mmlSymbol.getRest()).replaceAll("\\" + mmlSymbol.getTie(), "");
+			return text.replace("$N", mmlSymbol.getRest());
 		} else {
 			int keyIndex;
 			if(key >= 0) {
@@ -77,9 +87,8 @@ public class MMLNoteInfo {
 					keyIndex += mmlSymbol.getNotes().length;
 				}
 			}
-			
-			text = text.replaceAll("\\^\\$N", "^");
-			return text.replaceAll("\\$N", mmlSymbol.getNote(keyIndex));
+		
+			return text.replace("$N", mmlSymbol.getNote(keyIndex));
 		}
 	}
 	

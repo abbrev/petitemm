@@ -65,6 +65,8 @@ class Midi2MMLTrack {
 	private int currentVelocity = 127;
 	private int currentExpression = 127;
 	
+	private boolean midNote = false;
+	
 	/**
 	 * Construct new MML track conversion object.
 	 * 
@@ -72,6 +74,14 @@ class Midi2MMLTrack {
 	 */
 	Midi2MMLTrack(MMLSymbol mmlSymbol) {
 		this.mmlSymbol = mmlSymbol;
+	}
+	
+	public boolean getMidNote() {
+		return midNote;
+	}
+	
+	public void setMidNote(boolean midNote) {
+		this.midNote = midNote;
 	}
 	
 	/**
@@ -317,21 +327,31 @@ class Midi2MMLTrack {
 			StringBuilder mmlBuffer = new StringBuilder();
 			
 			// Satanic way to solve ties issues with commands inside notes
-			boolean addTie = false;
 			boolean skip;
+			boolean skipNext = false;
 			for(int i = 0; i < mmlEventList.size(); i++) {
+				if(skipNext) {
+					skipNext = false;
+					continue;
+				}
 				skip = false;
 				MMLEvent event = mmlEventList.get(i);
-				if(addTie && event.getCommand().matches("[abcdefgr][+-]?[\\d]*[\\.]*")) {
-					mmlBuffer.append(mmlSymbol.getTie());
-					addTie = false;
-					mmlBuffer.append(event.toString().replaceAll("[abcdefgr][+-]?", ""));
-					skip = true;
-				} else if(event.getCommand().equals(mmlSymbol.getTie())) {
-					// Check if we have a tie followed by a non-note command
-					// If yes, skip it and add it after the command
-					addTie = checkIfNonNoteNext(i);
-					skip = addTie;
+				if(event.getCommand().equals(mmlSymbol.getTie())) {
+					// In any case, remove the tie
+					// This removes random ties added during conversion
+					//skip = true;
+					
+					// Check if we have a tie followed by a note command
+					// If yes, remove the note name and skip it
+					if(i < mmlEventList.size() - 1) {
+						String nextCommand = mmlEventList.get(i+1).getCommand();
+						if(nextCommand.matches("[abcdefgr][+-]?\\d*\\.*")) {
+							mmlBuffer.append(event.getCommand());
+							mmlBuffer.append(nextCommand.replaceAll("[abcdefgr][+-]?", ""));
+							skip = true;
+							skipNext = true;
+						}
+					}
 				} else if(event.getCommand().equals(mmlSymbol.getVolumeMacro())) {
 					// Optimize consecutive volume commands
 					skip = checkIfVolumeNext(i);
@@ -362,20 +382,10 @@ class Midi2MMLTrack {
 				if(command.equals(mmlSymbol.getVolumeMacro())) {
 					// If there's another volume command, we don't need to write the current one
 					return true;
-				} else if(command.matches("(o\\d+)|([<>]+)|([abcdefg\\^][+-]?\\d*\\.*)(\\^\\d*\\.*)*")) {
+				} else if(command.matches("(o\\d+)|([<>]+)|([abcdefgr\\^][+-]?\\d*\\.*)(\\^\\d*\\.*)*")) {
 					// If there's a note (non-rest) next, we have to write the volume command
 					return false;
 				}
-			}
-		}
-		return false;
-	}
-	
-	private boolean checkIfNonNoteNext(int i) {
-		for(int j = i + 1; j < mmlEventList.size(); j++) {
-			String command = mmlEventList.get(j).getCommand();
-			if(!command.equals(" ")) {
-				return !command.matches("[abcdefgr][+-]?[\\d]*[\\.]*");
 			}
 		}
 		return false;
@@ -390,7 +400,7 @@ class Midi2MMLTrack {
 			int noteLenTo = 1 << i;
 			int noteLenFrom = noteLenTo * 3;
 			converted = converted.replaceAll(
-					REGEX1 + noteLenFrom + REGEX2 + noteLenFrom + "(\\s*[<>]*[abcdefgr\\^][\\+\\-]*)" + noteLenFrom,
+					REGEX1 + noteLenFrom + REGEX2 + noteLenFrom + REGEX2 + noteLenFrom,
 					"\\" + mmlSymbol.getTripletStart(noteLenTo) + "$1"
 							+ (mmlSymbol.shouldTripletHaveLengthInBracket() ? "\\" + noteLenTo : "") + "$2"
 							+ (mmlSymbol.shouldTripletHaveLengthInBracket() ? "\\" + noteLenTo : "") + "$3"
