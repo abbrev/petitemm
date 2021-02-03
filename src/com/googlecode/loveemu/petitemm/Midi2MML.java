@@ -977,13 +977,12 @@ public class Midi2MML {
 							}
 							break;
 						case 0x0B: // Expression
-							if (noExpression) {
-								break;
-							}
-							int expression = message.getData2();
-							if (expression != mmlTrack.getCurrentExpression()) {
-								mmlTrack.setCurrentExpression(expression);
-								addCurrentVolumeEvent(mmlEvents, mmlTrack);
+							if (!noExpression) {
+								int expression = message.getData2();
+								if (expression != mmlTrack.getCurrentExpression()) {
+									mmlTrack.setCurrentExpression(expression);
+									addCurrentVolumeEvent(mmlEvents, mmlTrack);
+								}
 							}
 							break;
 						default:
@@ -1022,7 +1021,7 @@ public class Midi2MML {
 	private void addCurrentVolumeEvent(List<MMLEvent> mmlEvents, Midi2MMLTrack mmlTrack) {
 		int volume = mmlTrack.getCurrentVolume();
 		int velocity = mmlTrack.getCurrentVelocity();
-		int expression = mmlTrack.getCurrentPan();
+		int expression = mmlTrack.getCurrentExpression();
 		int pan = mmlTrack.getCurrentPan();
 		MidiVolume newVolume = new MidiVolume(volume, velocity, expression, pan);
 		if (!volumes.contains(newVolume)) {

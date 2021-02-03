@@ -224,7 +224,7 @@ public class PetiteMM {
 			}
 		}
 		if (matches.size() == 1) {
-			output = output.replaceAll("(V..)(Q..)(E..)(P..)", "$1$2$3");
+			output = output.replaceAll("(V..Q..E..)(P..)", "$1");
 		}
 
 		// If all expression values are the same, just remove them from macro names
@@ -237,7 +237,7 @@ public class PetiteMM {
 			}
 		}
 		if (matches.size() == 1) {
-			output = output.replaceAll("(V..)(Q..)(E..)", "$1$2");
+			output = output.replaceAll("(V..Q..)(E..)", "$1");
 		}
 
 		// If all velocity values are the same, just remove them from macro names
