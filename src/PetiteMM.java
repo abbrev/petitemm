@@ -13,6 +13,20 @@ import javax.sound.midi.MidiSystem;
 import com.googlecode.loveemu.petitemm.Midi2MML;
 
 public class PetiteMM {
+	
+	// list of available option switches
+	private final static String[] argsAvail = {
+			"-o", "<filename>", "Specify the output MML filename.",
+			"--dots", "<count>", "Maximum dot counts allowed for dotted-note, -1 for infinity. (default=" + Midi2MML.DEFAULT_MAX_DOT_COUNT + ")",
+			"--timebase", "<TPQN>", "Timebase of target MML, " + Midi2MML.RESOLUTION_AS_IS + " to keep the input timebase. (default=" + Midi2MML.DEFAULT_RESOLUTION + ")",
+			"--input-timebase", "<TPQN>", "Timebase of input sequence, " + Midi2MML.RESOLUTION_AS_IS + " to keep the input timebase. (default=" + Midi2MML.RESOLUTION_AS_IS + ")",
+			"--quantize-precision", "<length>", "Specify the minimum note length for quantization.",
+			"--no-quantize", "", "Prevent adjusting note length. Result will be more accurate but more complicated.",
+			"--octave-reverse", "", "Swap the octave symbol. (not recommended)",
+			"--use-triplet", "", "Use triplet syntax if possible. (really not so smart)",
+			"--use-spaces", "", "Put a space after each note/octave/instrument change.",
+			"--no-expression", "", "Ignore Expression messages (Control Change message 11).",
+			"--multiply-volumes", "<factor>", "Multiply all the volumes by a given amount."};
 
 	/**
 	 * Removes the extension from a filename.
@@ -48,68 +62,53 @@ public class PetiteMM {
 		Midi2MML opt = new Midi2MML();
 		String mmlFileName = null;
 
-		// list of available option switches
-		final String[] argsAvail = {
-				"-o", "<filename>", "Specify the output MML filename.",
-				"--dots", "<count>", "Maximum dot counts allowed for dotted-note, -1 for infinity. (default=" + Midi2MML.DEFAULT_MAX_DOT_COUNT + ")",
-				"--timebase", "<TPQN>", "Timebase of target MML, " + Midi2MML.RESOLUTION_AS_IS + " to keep the input timebase. (default=" + Midi2MML.DEFAULT_RESOLUTION + ")",
-				"--input-timebase", "<TPQN>", "Timebase of input sequence, " + Midi2MML.RESOLUTION_AS_IS + " to keep the input timebase. (default=" + Midi2MML.RESOLUTION_AS_IS + ")",
-				"--quantize-precision", "<length>", "Specify the minimum note length for quantization.",
-				"--no-quantize", "", "Prevent adjusting note length. Result will be more accurate but more complicated.",
-				"--octave-reverse", "", "Swap the octave symbol. (not recommended)",
-				"--use-triplet", "", "Use triplet syntax if possible. (really not so smart)",
-				"--use-spaces", "", "Put a space after each note/octave/instrument change.",
-				"--no-expression", "", "Ignore Expression messages (Control Change message 11).",
-				"--multiply-volumes", "<factor>", "Multiply all the volumes by a given amount."};
-
 		int argi = 0;
 
 		args = new String[]{"--no-quantize", "--put-spaces", "Untitled.mid"};
 
 		// dispatch option switches
 		while (argi < args.length && args[argi].startsWith("-")) {
-			if (args[argi].equals("-o")) {
-				if (argi + 1 >= args.length) {
-					throw new IllegalArgumentException("Too few arguments for " + args[argi]);
-				}
+			switch(args[argi]) {
+			case "-o":
+				checkArgumentCount(args, argi);
 				mmlFileName = args[++argi];
-			} else if (args[argi].equals("--dots")) {
-				if (argi + 1 >= args.length) {
-					throw new IllegalArgumentException("Too few arguments for " + args[argi]);
-				}
+				break;
+			case "--dots":
+				checkArgumentCount(args, argi);
 				opt.setMaxDots(Integer.parseInt(args[++argi]));
-			} else if (args[argi].equals("--timebase")) {
-				if (argi + 1 >= args.length) {
-					throw new IllegalArgumentException("Too few arguments for " + args[argi]);
-				}
+				break;
+			case "--timebase":
+				checkArgumentCount(args, argi);
 				opt.setTargetResolution(Integer.parseInt(args[++argi]));
-			} else if (args[argi].equals("--input-timebase")) {
-				if (argi + 1 >= args.length) {
-					throw new IllegalArgumentException("Too few arguments for " + args[argi]);
-				}
+				break;
+			case "--input-timebase":
+				checkArgumentCount(args, argi);
 				opt.setInputResolution(Integer.parseInt(args[++argi]));
-			} else if (args[argi].equals("--quantize-precision")) {
-				if (argi + 1 >= args.length) {
-					throw new IllegalArgumentException("Too few arguments for " + args[argi]);
-				}
+				break;
+			case "--quantize-precision":
+				checkArgumentCount(args, argi);
 				opt.setQuantizePrecision(Integer.parseInt(args[++argi]));
-				argi += 1;
-			} else if (args[argi].equals("--no-quantize")) {
+				break;
+			case "--no-quantize":
 				opt.setQuantizationEnabled(false);
-			} else if (args[argi].equals("--octave-reverse")) {
+				break;
+			case "--octave-reverse":
 				opt.setOctaveReversed(false);
-			} else if (args[argi].equals("--use-triplet")) {
+				break;
+			case "--use-triplet":
 				opt.setTripletPreference(true);
-			} else if (args[argi].equals("--put-spaces")) {
+				break;
+			case "--put-spaces":
 				opt.setPutSpaces(true);
-			} else if (args[argi].equals("--no-expression")) {
+				break;
+			case "--no-expression":
 				opt.setNoExpression(true);
-			} else if (args[argi].equals("--multiply-volumes")) {
-				if (argi + 1 >= args.length) {
-					throw new IllegalArgumentException("Too few arguments for " + args[argi]);
-				}
+				break;
+			case "--multiply-volumes":
+				checkArgumentCount(args, argi);
 				opt.setMultiplyVolumes(Double.parseDouble(args[++argi]));
-			} else {
+				break;
+			default:
 				throw new IllegalArgumentException("Unsupported option [" + args[argi] + "]");
 			}
 			argi++;
@@ -172,6 +171,12 @@ public class PetiteMM {
 		}
 
 		System.exit(succeeded ? 0 : 1);
+	}
+	
+	private static void checkArgumentCount(String args[], int argi) {
+		if (argi + 1 >= args.length) {
+			throw new IllegalArgumentException("Too few arguments for " + args[argi]);
+		}
 	}
 
 	private static String postProcess(StringBuilder mml) {
