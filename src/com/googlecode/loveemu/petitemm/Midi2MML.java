@@ -29,7 +29,7 @@ public class Midi2MML {
 	/**
 	 * Author of the tool.
 	 */
-	public static final String AUTHOR = "loveemu, gocha";
+	public static final String AUTHOR = "loveemu, gocha, KevinM";
 
 	/**
 	 * Website of the tool.
@@ -104,9 +104,14 @@ public class Midi2MML {
 	private boolean useTriplet = false;
 
 	/**
-	 * true if notes/octave changes are spaced apart
+	 * true if notes/octave changes are spaced apart.
 	 */
 	private boolean putSpaces = false;
+	
+	/**
+	 * true if control changes should be ignored.
+	 */
+	private boolean noControlChanges = false;
 
 	/**
 	 * true if ignore expression messages.
@@ -188,6 +193,7 @@ public class Midi2MML {
 		this.targetResolution = obj.targetResolution;
 		this.quantizePrecision = obj.quantizePrecision;
 		this.putSpaces = obj.putSpaces;
+		this.noControlChanges = obj.noControlChanges;
 		this.noExpression = obj.noExpression;
 		this.multiplyVolumes = obj.multiplyVolumes;
 	}
@@ -360,6 +366,14 @@ public class Midi2MML {
 			throw new IllegalArgumentException("Quantize precision must be power of 2.");
 		this.quantizePrecision = quantizePrecision;
 	}
+	
+	public boolean getNoControlChanges() {
+		return noControlChanges;
+	}
+	
+	public void setNoControlChanges(boolean noControlChanges) {
+		this.noControlChanges = noControlChanges;
+	}
 
 	/**
 	 * Write MML of given sequence.
@@ -384,12 +398,11 @@ public class Midi2MML {
 		// preprocess
 		if (inputResolution != RESOLUTION_AS_IS)
 			seq = MidiUtil.assumeResolution(seq, inputResolution, true);
-		// the converter assumes that all events in a track are for a single
-		// channel,
-		// when the input file is SMF format 0 or something like that, it
-		// requires
-		// preprocessing.
+		
+		// the converter assumes that all events in a track are for a single channel,
+		// when the input file is SMF format 0 or something like that, it requires preprocessing.
 		seq = MidiUtil.separateMixedChannel(seq);
+		
 		// adjust resolution for MML conversion
 		if (targetResolution != RESOLUTION_AS_IS)
 			seq = MidiUtil.changeResolution(seq, targetResolution);
@@ -491,117 +504,22 @@ public class Midi2MML {
 									? midiNextNote.getTime()
 									: midiTracksEndTick[trackIndex]) - mmlLastTick;
 							if (message.getData1() == mmlTrack.getNoteNumber() && minLength != 0) {
-								long length = minLength;
-								if (quantizationEnabled) {
-									long wholeNoteCount = (minLength - 1) / (seq.getResolution() * 4);
-
-									// remove whole notes temporarily
-									minLength -= (seq.getResolution() * 4) * wholeNoteCount;
-									maxLength -= (seq.getResolution() * 4) * wholeNoteCount;
-
-									// find the nearest 2^n note
-									// minLength/nearPow2 is almost always in [0.5,1.0]
-									// (almost, because nearPow2 may have slight
-									// error at a very short note)
-									// nearPow2 can be greater than maxLength
-									long nearPow2 = (long) seq.getResolution() * 4;
-									while (nearPow2 / 2 >= minLength)
-										nearPow2 /= 2;
-
-									List<Double> rateCandidates = new ArrayList<>(Arrays.asList(0.5, 1.0));
-									int maxDotCount = (maxDots != -1) ? maxDots : Integer.MAX_VALUE;
-									double dottedNoteRate = 0.5;
-									for (int dot = 1; dot <= maxDotCount; dot++) {
-										if (nearPow2 % (1 << dot) != 0)
-											break;
-
-										dottedNoteRate += Math.pow(0.5, dot + 1.0);
-										rateCandidates.add(dottedNoteRate); // dotted note (0.75, 0.875...)
-									}
-									if (nearPow2 * 2 % 3 == 0)
-										rateCandidates.add(2.0 / 3.0); // triplet
-									Collections.sort(rateCandidates);
-
-									if (DEBUG_DUMP) {
-										StringBuilder ratesBuffer = new StringBuilder();
-										boolean firstItem = true;
-										ratesBuffer.append("[");
-										for (double rateCandidate : rateCandidates) {
-											if (firstItem)
-												firstItem = false;
-											else
-												ratesBuffer.append(",");
-											ratesBuffer.append(String.format("%.3f", rateCandidate));
-										}
-										ratesBuffer.append("]");
-										System.out.println("rateCandidates=" + ratesBuffer.toString());
-									}
-
-									double rateLowerLimit = (double) minLength / nearPow2;
-									double rateUpperLimit = (double) maxLength / nearPow2;
-
-									long quantizeNoteLength = 0;
-									if (quantizePrecision != QUANTIZE_PRECISION_AS_IS) {
-										// can have error
-										quantizeNoteLength = (seq.getResolution() * 4) / quantizePrecision;
-									}
-
-									double rateNearest = 0.0;
-									double rateBestDistance = Double.MAX_VALUE;
-									for (double rateCandidate : rateCandidates) {
-										rateCandidate = Math.min(rateCandidate, rateUpperLimit);
-
-										double rateDistance = Math.abs(rateLowerLimit - rateCandidate);
-										if (rateDistance <= rateBestDistance) {
-											boolean rateRequiresUpdate = true;
-											if (nearPow2 >= quantizeNoteLength && rateCandidate < rateUpperLimit) {
-												long noteLengthCandidate = Math.round(nearPow2 * rateCandidate);
-												List<Integer> noteLengths = noteConv
-														.getPrimitiveNoteLengths((int) noteLengthCandidate, true);
-												rateRequiresUpdate = (noteLengths
-														.get(noteLengths.size() - 1) >= quantizeNoteLength);
-											}
-											if (rateRequiresUpdate) {
-												rateNearest = rateCandidate;
-												rateBestDistance = rateDistance;
-											}
-										}
-										if (rateCandidate >= rateUpperLimit)
-											break;
-									}
-									length = Math.round(nearPow2 * rateNearest);
-
-									if (length < minLength) {
-										List<Integer> restLengths = noteConv
-												.getPrimitiveNoteLengths((int) (maxLength - length), false);
-										for (int i = restLengths.size() - 1; i >= 0; i--) {
-											int restLength = restLengths.get(i);
-											if (length + restLength <= minLength) {
-												length += restLength;
-											} else {
-												long oldDistance = minLength - length;
-												long newDistance = (length + restLength) - minLength;
-												if (newDistance <= oldDistance)
-													length += restLength;
-												break;
-											}
-										}
-									}
-
-									length += wholeNoteCount * (seq.getResolution() * 4);
-
-									if (DEBUG_DUMP) {
-										System.out.format(
-												"Note Off: track=%d,tick=%d<%s>,mmlLastTick=%d<%s>,length=%d,minLength=%d,maxLength=%d,nearPow2=%d,rateLimit=[%.2f,%.2f],rateNearest=%.2f,next=%s%n",
-												trackIndex, tick,
-												MidiTimeSignature.getMeasureTickString(tick, timeSignatures,
-														seq.getResolution()),
-												mmlLastTick,
-												MidiTimeSignature.getMeasureTickString(mmlLastTick, timeSignatures,
-														seq.getResolution()),
-												length, minLength, maxLength, nearPow2, rateLowerLimit, rateUpperLimit,
-												rateNearest, (midiNextNote != null) ? midiNextNote.toString() : "null");
-									}
+								if (DEBUG_DUMP) {
+									System.out.format(
+											"Note Off: track=%d,tick=%d<%s>,mmlLastTick=%d<%s>",
+											trackIndex, tick,
+											MidiTimeSignature.getMeasureTickString(tick, timeSignatures,
+													seq.getResolution()),
+											mmlLastTick,
+											MidiTimeSignature.getMeasureTickString(mmlLastTick, timeSignatures,
+													seq.getResolution()));
+								}
+								
+								long length = quantize(seq, noteConv, minLength, maxLength);
+								
+								if(DEBUG_DUMP) {
+									System.out.format(",next=%s%n",
+											(midiNextNote != null) ? midiNextNote.toString() : "null");
 								}
 
 								mmlTrack.setTick(mmlLastTick + length);
@@ -1154,5 +1072,120 @@ public class Midi2MML {
 			buf.append(String.format("%02X", b));
 		}
 		return buf.toString();
+	}
+	
+	private long quantize(Sequence seq, MMLNoteConverter noteConv, long minLength, long maxLength) {
+		long length = minLength;
+		
+		if(!quantizationEnabled) {
+			if(DEBUG_DUMP) {
+				System.out.format(",length=%d", length);
+			}
+			return length;
+		}
+		
+		long wholeNoteCount = (minLength - 1) / (seq.getResolution() * 4);
+
+		// remove whole notes temporarily
+		minLength -= (seq.getResolution() * 4) * wholeNoteCount;
+		maxLength -= (seq.getResolution() * 4) * wholeNoteCount;
+
+		// find the nearest 2^n note
+		// minLength/nearPow2 is almost always in [0.5,1.0]
+		// (almost, because nearPow2 may have slight
+		// error at a very short note)
+		// nearPow2 can be greater than maxLength
+		long nearPow2 = (long) seq.getResolution() * 4;
+		while (nearPow2 / 2 >= minLength)
+			nearPow2 /= 2;
+
+		List<Double> rateCandidates = new ArrayList<>(Arrays.asList(0.5, 1.0));
+		int maxDotCount = (maxDots != -1) ? maxDots : Integer.MAX_VALUE;
+		double dottedNoteRate = 0.5;
+		for (int dot = 1; dot <= maxDotCount; dot++) {
+			if (nearPow2 % (1 << dot) != 0)
+				break;
+
+			dottedNoteRate += Math.pow(0.5, dot + 1.0);
+			rateCandidates.add(dottedNoteRate); // dotted note (0.75, 0.875...)
+		}
+		if (nearPow2 * 2 % 3 == 0)
+			rateCandidates.add(2.0 / 3.0); // triplet
+		Collections.sort(rateCandidates);
+
+		if (DEBUG_DUMP) {
+			StringBuilder ratesBuffer = new StringBuilder();
+			boolean firstItem = true;
+			ratesBuffer.append("[");
+			for (double rateCandidate : rateCandidates) {
+				if (firstItem)
+					firstItem = false;
+				else
+					ratesBuffer.append(",");
+				ratesBuffer.append(String.format("%.3f", rateCandidate));
+			}
+			ratesBuffer.append("]");
+			System.out.println("rateCandidates=" + ratesBuffer.toString());
+		}
+
+		double rateLowerLimit = (double) minLength / nearPow2;
+		double rateUpperLimit = (double) maxLength / nearPow2;
+
+		long quantizeNoteLength = 0;
+		if (quantizePrecision != QUANTIZE_PRECISION_AS_IS) {
+			// can have error
+			quantizeNoteLength = (seq.getResolution() * 4) / quantizePrecision;
+		}
+
+		double rateNearest = 0.0;
+		double rateBestDistance = Double.MAX_VALUE;
+		for (double rateCandidate : rateCandidates) {
+			rateCandidate = Math.min(rateCandidate, rateUpperLimit);
+
+			double rateDistance = Math.abs(rateLowerLimit - rateCandidate);
+			if (rateDistance <= rateBestDistance) {
+				boolean rateRequiresUpdate = true;
+				if (nearPow2 >= quantizeNoteLength && rateCandidate < rateUpperLimit) {
+					long noteLengthCandidate = Math.round(nearPow2 * rateCandidate);
+					List<Integer> noteLengths = noteConv
+							.getPrimitiveNoteLengths((int) noteLengthCandidate, true);
+					rateRequiresUpdate = (noteLengths
+							.get(noteLengths.size() - 1) >= quantizeNoteLength);
+				}
+				if (rateRequiresUpdate) {
+					rateNearest = rateCandidate;
+					rateBestDistance = rateDistance;
+				}
+			}
+			if (rateCandidate >= rateUpperLimit)
+				break;
+		}
+		length = Math.round(nearPow2 * rateNearest);
+
+		if (length < minLength) {
+			List<Integer> restLengths = noteConv
+					.getPrimitiveNoteLengths((int) (maxLength - length), false);
+			for (int i = restLengths.size() - 1; i >= 0; i--) {
+				int restLength = restLengths.get(i);
+				if (length + restLength <= minLength) {
+					length += restLength;
+				} else {
+					long oldDistance = minLength - length;
+					long newDistance = (length + restLength) - minLength;
+					if (newDistance <= oldDistance)
+						length += restLength;
+					break;
+				}
+			}
+		}
+
+		length += wholeNoteCount * (seq.getResolution() * 4);
+		
+		if(DEBUG_DUMP) {
+			System.out.format(",length=%d,minLength=%d,maxLength=%d,nearPow2=%d,rateLimit=[%.2f,%.2f],rateNearest=%.2f",
+					length, minLength, maxLength, nearPow2, rateLowerLimit, rateUpperLimit, rateNearest);
+		}
+		
+		return length;
 	}
 }

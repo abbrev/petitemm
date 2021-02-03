@@ -31,9 +31,13 @@ You can run PetiteMM manually with `java -jar PetiteMM.jar (options) input.mid [
 |--no-quantize        |n/a              |Prevent adjusting note length. Result will be more accurate but more complicated. |
 |--octave-reverse     |n/a              |Swap the octave symbol. (not recommended)                                                          |
 |--use-triplet        |n/a              |Use triplet syntax if possible. (really not so smart)                             |
+|--no-control-changes |n/a              |Ignore control change messages (instrument, volume, panning).
+|
 |--no-expression      |n/a              |Ignore Expression messages (Control Change message 11) for volume computation.
 |
 |--multiply-volumes   |[float]factor    |Multiply all output volumes by a constant factor.
+|
+|--no-pan-adjust      |n/a              |Don't adjust the volume values based on the panning values, which is done to account for the fact that AMK's volumes get louder for pannings farther from the center.
 |
 
 Special Thanks

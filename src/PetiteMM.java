@@ -16,7 +16,7 @@ public class PetiteMM {
 	
 	// list of available option switches
 	private static final String[] argsAvail = {
-			"-o", "<filename>", "Specify the output MML filename.",
+			"-o", "<filename>", "Specify the output MML filename. It can only be used with a single input midi file.",
 			"--dots", "<count>", "Maximum dot counts allowed for dotted-note, -1 for infinity. (default=" + Midi2MML.DEFAULT_MAX_DOT_COUNT + ")",
 			"--timebase", "<TPQN>", "Timebase of target MML, " + Midi2MML.RESOLUTION_AS_IS + " to keep the input timebase. (default=" + Midi2MML.DEFAULT_RESOLUTION + ")",
 			"--input-timebase", "<TPQN>", "Timebase of input sequence, " + Midi2MML.RESOLUTION_AS_IS + " to keep the input timebase. (default=" + Midi2MML.RESOLUTION_AS_IS + ")",
@@ -24,9 +24,11 @@ public class PetiteMM {
 			"--no-quantize", "", "Prevent adjusting note length. Result will be more accurate but more complicated.",
 			"--octave-reverse", "", "Swap the octave symbol. (not recommended)",
 			"--use-triplet", "", "Use triplet syntax if possible. (really not so smart)",
-			"--use-spaces", "", "Put a space after each note/octave/instrument change.",
-			"--no-expression", "", "Ignore Expression messages (Control Change message 11).",
-			"--multiply-volumes", "<factor>", "Multiply all the volumes by a given amount."};
+			"--use-spaces", "", "Put a space after each note/octave/instrument/volume/pan change.",
+			"--no-control-changes", "", "Ignore control changes messages (instrument, volume, pan).",
+			"--no-expression", "", "Ignore Expression messages (Control Change message 11) when computing volumes.",
+			"--multiply-volumes", "<factor>", "Multiply all the volumes by a given amount.",
+			"--no-pan-adjust", "", "Don't adjust volumes based on the panning value."};
 
 	/**
 	 * Removes the extension from a filename.
@@ -108,6 +110,8 @@ public class PetiteMM {
 				checkArgumentCount(args, argi);
 				opt.setMultiplyVolumes(Double.parseDouble(args[++argi]));
 				break;
+			case "--no-control-changes":
+				opt.setNoControlChanges(true);
 			default:
 				throw new IllegalArgumentException("Unsupported option [" + args[argi] + "]");
 			}
@@ -169,7 +173,7 @@ public class PetiteMM {
 			converter.writeMML(MidiSystem.getSequence(midiFile), writer);
 			StringBuilder mml = converter.writeMacros();
 			mml.append(writer.toString());
-			fileWriter.write(postProcess(mml));
+			fileWriter.write(postProcess(mml, options));
 			success = true;
 		} catch (InvalidMidiDataException | IOException e) {
 			e.printStackTrace();
@@ -184,8 +188,12 @@ public class PetiteMM {
 		}
 	}
 
-	private static String postProcess(StringBuilder mml) {
+	private static String postProcess(StringBuilder mml, Midi2MML options) {
 		String output = mml.toString();
+		
+		if(options.getNoControlChanges()) {
+			return output;
+		}
 
 		// If there's some unused macro left, remove it
 		List<String> matches = new ArrayList<>();
