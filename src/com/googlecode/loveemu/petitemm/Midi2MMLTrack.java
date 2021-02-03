@@ -64,6 +64,7 @@ class Midi2MMLTrack {
 	private int currentVolume = 127;
 	private int currentVelocity = 127;
 	private int currentExpression = 127;
+	private int currentPan = 64;
 	
 	private boolean midNote = false;
 	
@@ -288,6 +289,14 @@ class Midi2MMLTrack {
 	
 	public void setCurrentExpression(int currentExpression) {
 		this.currentExpression = currentExpression;
+	}
+	
+	public int getCurrentPan() {
+		return currentPan;
+	}
+	
+	public void setCurrentPan(int currentPan) {
+		this.currentPan = currentPan;
 	}
 	
 	/**

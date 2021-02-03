@@ -122,6 +122,11 @@ public class Midi2MML {
 	 * Volume multiplication factor.
 	 */
 	private double multiplyVolumes = 1.0;
+	
+	/**
+	 * true if panning volume adjusting should be avoided.
+	 */
+	private boolean noPanAdjust = false;
 
 	/**
 	 * true if write debug informations to stdout.
@@ -129,7 +134,7 @@ public class Midi2MML {
 	private static final boolean DEBUG_DUMP = false;
 
 	private List<Integer> instruments = new ArrayList<>();
-	private List<Triple<Integer, Integer, Integer>> volumes = new ArrayList<>();
+	private List<MidiVolume> volumes = new ArrayList<>();
 	private List<Integer> pannings = new ArrayList<>();
 
 	/**
@@ -196,6 +201,7 @@ public class Midi2MML {
 		this.noControlChanges = obj.noControlChanges;
 		this.noExpression = obj.noExpression;
 		this.multiplyVolumes = obj.multiplyVolumes;
+		this.noPanAdjust = obj.noPanAdjust;
 	}
 
 	/**
@@ -374,6 +380,14 @@ public class Midi2MML {
 	public void setNoControlChanges(boolean noControlChanges) {
 		this.noControlChanges = noControlChanges;
 	}
+	
+	public boolean getNoPanAdjust() {
+		return noPanAdjust;
+	}
+	
+	public void setNoPanAdjust(boolean noPanAdjust) {
+		this.noPanAdjust = noPanAdjust;
+	}
 
 	/**
 	 * Write MML of given sequence.
@@ -532,8 +546,7 @@ public class Midi2MML {
 							int velocity = message.getData2();
 							if (velocity != mmlTrack.getCurrentVelocity()) {
 								mmlTrack.setCurrentVelocity(velocity);
-								addVolumeEvent(mmlEvents, mmlTrack.getCurrentVolume(), velocity,
-										mmlTrack.getCurrentExpression());
+								addCurrentVolumeEvent(mmlEvents, mmlTrack);
 							}
 
 							// write some initialization for the first note
@@ -706,24 +719,34 @@ public class Midi2MML {
 
 	public StringBuilder writeMacros() {
 		StringBuilder sb = new StringBuilder();
+		
+		if(getNoControlChanges()) {
+			return sb;
+		}
+		
 		sb.append("; Instrument macros" + LINE_SEPARATOR);
 		int i = 30;
 		for (int instr : instruments) {
-			String macro = String.format("\"I%02X\t= %s%d\"%s", instr, mmlSymbol.getInstrument(), i++, LINE_SEPARATOR);
+			String macro = String.format("\"I%02X = %s%d\"%s", instr, mmlSymbol.getInstrument(), i++, LINE_SEPARATOR);
 			sb.append(macro);
 		}
 
 		sb.append(LINE_SEPARATOR + "; Pan macros" + LINE_SEPARATOR);
 		for (int pan : pannings) {
 			int y = Utils.getClosestValue(SMWTables.PAN_TABLE, pan);
-			String macro = String.format("\"Y%02X\t= %s%d\"%s", pan, mmlSymbol.getPan(), y, LINE_SEPARATOR);
+			String macro = String.format("\"Y%02X = %s%d\"%s", pan, mmlSymbol.getPan(), y, LINE_SEPARATOR);
 			sb.append(macro);
 		}
 
 		sb.append(LINE_SEPARATOR + "; Volume macros" + LINE_SEPARATOR);
-		for (Triple<Integer, Integer, Integer> volume : volumes) {
-			double coeff = ((double) volume.x / 127.0) * Math.pow((double) volume.y / 127.0, 2.0)
-					* Math.pow((double) volume.z / 127.0, 2.0);
+		for (MidiVolume volume : volumes) {
+			int vol = volume.volume;
+			int qnt = volume.quantization;
+			int exp = volume.expression;
+			int pan = volume.pan;
+			
+			double coeff = ((double) vol / 127.0) * Math.pow((double) qnt / 127.0, 2.0)
+					* Math.pow((double) exp / 127.0, 2.0);
 			int index = (int) Math.round(coeff * this.multiplyVolumes * 77.0);
 			int amplify = 0;
 			if (index > 77) {
@@ -735,12 +758,12 @@ public class Midi2MML {
 			}
 			int v = SMWTables.VOLUME_TABLE[index];
 			String macro;
-			if (amplify != 0) {
-				macro = String.format("\"V%02XQ%02XE%02X\t= %s%d $fa$03$%02x\"%s", volume.x, volume.y, volume.z,
-						mmlSymbol.getVolume(), v, amplify, LINE_SEPARATOR);
-			} else {
-				macro = String.format("\"V%02XQ%02XE%02X\t= %s%d\"%s", volume.x, volume.y, volume.z,
+			if(getNoPanAdjust()) {
+				macro = String.format("\"V%02XQ%02XE%02X = %s%d\"%s", vol, qnt, exp,
 						mmlSymbol.getVolume(), v, LINE_SEPARATOR);
+			} else {
+				macro = String.format("\"V%02XQ%02XE%02XP%02X = %s%d\"%s", vol, qnt, exp,
+						pan, mmlSymbol.getVolume(), v, LINE_SEPARATOR);
 			}
 			sb.append(macro);
 		}
@@ -917,7 +940,6 @@ public class Midi2MML {
 		List<MMLEvent> mmlEvents = new ArrayList<>();
 		if (event.getMessage() instanceof ShortMessage) {
 			ShortMessage message = (ShortMessage) event.getMessage();
-
 			String space = putSpaces ? " " : "";
 
 			switch (message.getCommand()) {
@@ -930,7 +952,7 @@ public class Midi2MML {
 						instruments.add(instr);
 					}
 					String sInstr = String.format("%02X%s", instr, space);
-					mmlEvents.add(new MMLEvent(mmlSymbol.getInstrumentMacro(), new String[]{sInstr}));
+					addControlChange(mmlEvents, new MMLEvent(mmlSymbol.getInstrumentMacro(), new String[]{sInstr}));
 					break;
 				case ShortMessage.CONTROL_CHANGE: // Volume/pan change
 					int type = message.getData1();
@@ -939,8 +961,7 @@ public class Midi2MML {
 							int volume = message.getData2();
 							if (volume != mmlTrack.getCurrentVolume()) {
 								mmlTrack.setCurrentVolume(volume);
-								addVolumeEvent(mmlEvents, volume, mmlTrack.getCurrentVelocity(),
-										mmlTrack.getCurrentExpression());
+								addCurrentVolumeEvent(mmlEvents, mmlTrack);
 							}
 							break;
 						case 0x0A: // Pan
@@ -948,8 +969,12 @@ public class Midi2MML {
 							if (!pannings.contains(pan)) {
 								pannings.add(pan);
 							}
-							String sPan = String.format("%02X%s", pan, space);
-							mmlEvents.add(new MMLEvent(mmlSymbol.getPanMacro(), new String[]{sPan}));
+							if(pan != mmlTrack.getCurrentPan()) {
+								mmlTrack.setCurrentPan(pan);
+								addCurrentVolumeEvent(mmlEvents, mmlTrack);
+								String sPan = String.format("%02X%s", pan, space);
+								addControlChange(mmlEvents, new MMLEvent(mmlSymbol.getPanMacro(), new String[]{sPan}));
+							}
 							break;
 						case 0x0B: // Expression
 							if (noExpression) {
@@ -958,8 +983,7 @@ public class Midi2MML {
 							int expression = message.getData2();
 							if (expression != mmlTrack.getCurrentExpression()) {
 								mmlTrack.setCurrentExpression(expression);
-								addVolumeEvent(mmlEvents, mmlTrack.getCurrentVolume(), mmlTrack.getCurrentVelocity(),
-										expression);
+								addCurrentVolumeEvent(mmlEvents, mmlTrack);
 							}
 							break;
 						default:
@@ -995,14 +1019,29 @@ public class Midi2MML {
 		return mmlEvents;
 	}
 
-	private void addVolumeEvent(List<MMLEvent> mmlEvents, int volume, int velocity, int expression) {
-		Triple<Integer, Integer, Integer> newTriple = new Triple<>(volume, velocity, expression);
-		if (!volumes.contains(newTriple)) {
-			volumes.add(newTriple);
+	private void addCurrentVolumeEvent(List<MMLEvent> mmlEvents, Midi2MMLTrack mmlTrack) {
+		int volume = mmlTrack.getCurrentVolume();
+		int velocity = mmlTrack.getCurrentVelocity();
+		int expression = mmlTrack.getCurrentPan();
+		int pan = mmlTrack.getCurrentPan();
+		MidiVolume newVolume = new MidiVolume(volume, velocity, expression, pan);
+		if (!volumes.contains(newVolume)) {
+			volumes.add(newVolume);
 		}
 		String space = putSpaces ? " " : "";
-		String sVol = String.format("%02XQ%02XE%02X%s", volume, velocity, expression, space);
-		mmlEvents.add(new MMLEvent(mmlSymbol.getVolumeMacro(), new String[]{sVol}));
+		String sVol;
+		if(getNoPanAdjust()) {
+			sVol = String.format("%02XQ%02XE%02X%s", volume, velocity, expression, space);
+		} else {
+			sVol = String.format("%02XQ%02XE%02XP%02X%s", volume, velocity, expression, pan, space);
+		}
+		addControlChange(mmlEvents, new MMLEvent(mmlSymbol.getVolumeMacro(), new String[]{sVol}));
+	}
+	
+	private void addControlChange(List<MMLEvent> mmlEvents, MMLEvent event) {
+		if(!getNoControlChanges()) {
+			mmlEvents.add(event);
+		}
 	}
 
 	/**

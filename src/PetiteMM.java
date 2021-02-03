@@ -112,6 +112,10 @@ public class PetiteMM {
 				break;
 			case "--no-control-changes":
 				opt.setNoControlChanges(true);
+				break;
+			case "--no-pan-adjust":
+				opt.setNoPanAdjust(true);
+				break;
 			default:
 				throw new IllegalArgumentException("Unsupported option [" + args[argi] + "]");
 			}
@@ -124,7 +128,7 @@ public class PetiteMM {
 			System.out.println(Midi2MML.WEBSITE);
 			System.out.println();
 
-			System.out.println("Syntax: PetiteMM <options> input.mid");
+			System.out.println("Syntax: PetiteMM <options> input.mid [input2.mid ...]");
 			if (argsAvail.length > 0)
 				System.out.println("Options:");
 			for (int i = 0; i < argsAvail.length / 3; i++) {
@@ -209,6 +213,19 @@ public class PetiteMM {
 		for (String match : matches) {
 			output = output.replaceAll("\"" + match + ".*=.*\"\\n", "");
 		}
+		
+		// If all pan values are the same, just remove them from macro names
+		matches.clear();
+		matcher = Pattern.compile("V..Q..E..P..").matcher(output);
+		while (matcher.find()) {
+			String match = matcher.group().substring(9);
+			if (!matches.contains(match)) {
+				matches.add(match);
+			}
+		}
+		if (matches.size() == 1) {
+			output = output.replaceAll("(V..)(Q..)(E..)(P..)", "$1$2$3");
+		}
 
 		// If all expression values are the same, just remove them from macro names
 		matches.clear();
@@ -219,7 +236,7 @@ public class PetiteMM {
 				matches.add(match);
 			}
 		}
-		if (matches.size() <= 1) {
+		if (matches.size() == 1) {
 			output = output.replaceAll("(V..)(Q..)(E..)", "$1$2");
 		}
 
@@ -232,7 +249,7 @@ public class PetiteMM {
 				matches.add(match);
 			}
 		}
-		if (matches.size() <= 1) {
+		if (matches.size() == 1) {
 			output = output.replaceAll("(V..)(Q..)", "$1");
 		}
 
