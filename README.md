@@ -17,7 +17,7 @@ How To Use
 1. Install [Java](http://java.com/download/) Runtime Environment (if you do not have yet)
 2. Drag and drop .mid files into PetiteMM.bat, and .mml files will be saved in the input directory
 
-You can run PetiteMM manually by `java -jar PetiteMM.jar (options) input.mid`
+You can run PetiteMM manually with `java -jar PetiteMM.jar (options) input.mid [input2.mid...]` (list all midi files you want to convert last). Use `java -jar PetiteMM.jar (options) *.mid` to convert all midi files in the current folder.
 
 ### Options
 

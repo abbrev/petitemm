@@ -15,7 +15,7 @@ import com.googlecode.loveemu.petitemm.Midi2MML;
 public class PetiteMM {
 	
 	// list of available option switches
-	private final static String[] argsAvail = {
+	private static final String[] argsAvail = {
 			"-o", "<filename>", "Specify the output MML filename.",
 			"--dots", "<count>", "Maximum dot counts allowed for dotted-note, -1 for infinity. (default=" + Midi2MML.DEFAULT_MAX_DOT_COUNT + ")",
 			"--timebase", "<TPQN>", "Timebase of target MML, " + Midi2MML.RESOLUTION_AS_IS + " to keep the input timebase. (default=" + Midi2MML.DEFAULT_RESOLUTION + ")",
@@ -64,8 +64,8 @@ public class PetiteMM {
 
 		int argi = 0;
 
-		args = new String[]{"--no-quantize", "--put-spaces", "Untitled.mid"};
-
+		//args = new String[]{"--no-quantize", "--put-spaces", "Untitled.mid"};
+		
 		// dispatch option switches
 		while (argi < args.length && args[argi].startsWith("-")) {
 			switch(args[argi]) {
@@ -129,24 +129,38 @@ public class PetiteMM {
 
 			System.exit(1);
 		}
-
-		// target must be a single file
-		if (argi + 1 < args.length) {
-			throw new IllegalArgumentException("Too many arguments.");
+		
+		if(mmlFileName != null && args.length - argi > 1) {
+			throw new IllegalArgumentException("The -o option can only be used with a single input file!");
+		}
+		
+		boolean success = true;
+		
+		while(argi < args.length) {
+			String midiFileName = args[argi];
+			String currentFileName = mmlFileName;
+			if(mmlFileName == null) {
+				currentFileName = removeExtension(args[argi]) + ".txt";
+			}
+			boolean fileSuccess = convert(midiFileName, currentFileName, opt);
+			if(!fileSuccess) {
+				success = false;
+			}
+			argi++;
 		}
 
+		System.exit(success ? 0 : 1);
+	}
+	
+	private static boolean convert(String midiFileName, String mmlFileName, Midi2MML options) {
 		// convert the given file
-		File midiFile = new File(args[argi]);
-		if (mmlFileName == null) {
-			mmlFileName = PetiteMM.removeExtension(args[argi]) + ".txt";
-		}
+		File midiFile = new File(midiFileName);
 		File mmlFile = new File(mmlFileName);
 
-		Midi2MML converter = new Midi2MML(opt);
-		FileWriter fileWriter = null;
-		boolean succeeded = false;
+		Midi2MML converter = new Midi2MML(options);
+		boolean success = false;
 
-		try {
+		try (FileWriter fileWriter = new FileWriter(mmlFile)){
 			if (!midiFile.exists()) {
 				throw new FileNotFoundException(midiFile.getName() + " (The system cannot find the file specified)");
 			}
@@ -155,25 +169,16 @@ public class PetiteMM {
 			converter.writeMML(MidiSystem.getSequence(midiFile), writer);
 			StringBuilder mml = converter.writeMacros();
 			mml.append(writer.toString());
-			fileWriter = new FileWriter(mmlFile);
 			fileWriter.write(postProcess(mml));
-			succeeded = true;
+			success = true;
 		} catch (InvalidMidiDataException | IOException e) {
 			e.printStackTrace();
-		} finally {
-			if (fileWriter != null) {
-				try {
-					fileWriter.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
 		}
-
-		System.exit(succeeded ? 0 : 1);
+		
+		return success;
 	}
 	
-	private static void checkArgumentCount(String args[], int argi) {
+	private static void checkArgumentCount(String[] args, int argi) {
 		if (argi + 1 >= args.length) {
 			throw new IllegalArgumentException("Too few arguments for " + args[argi]);
 		}
