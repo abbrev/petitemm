@@ -9,7 +9,7 @@ Features:
 - Supports triplets such as `c12d12e12`
 - No polyphonic support, only one note will be converted
 - Timings between tracks will never desync like some other converters
-- Control changes are *not* supported (they will be ignored)
+- Control changes are supported
 
 How To Use
 ----------
@@ -29,8 +29,12 @@ You can run PetiteMM manually by `java -jar PetiteMM.jar (options) input.mid`
 |--input-timebase     |[int]TPQN        |Timebase of input sequence, 0 to keep the input timebase. (default=0)             |
 |--quantize-precision |[int]length      |Specify the minimum note length for quantization. (example: 64 for 64th note)     |
 |--no-quantize        |n/a              |Prevent adjusting note length. Result will be more accurate but more complicated. |
-|--octave-reverse     |n/a              |Swap the octave symbol.                                                           |
+|--octave-reverse     |n/a              |Swap the octave symbol. (not recommended)                                                          |
 |--use-triplet        |n/a              |Use triplet syntax if possible. (really not so smart)                             |
+|--no-expression      |n/a              |Ignore Expression messages (Control Change message 11) for volume computation.
+|
+|--multiply-volumes   |[float]factor    |Multiply all output volumes by a constant factor.
+|
 
 Special Thanks
 --------------

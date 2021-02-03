@@ -56,7 +56,7 @@ public class PetiteMM {
 				"--input-timebase", "<TPQN>", "Timebase of input sequence, " + Midi2MML.RESOLUTION_AS_IS + " to keep the input timebase. (default=" + Midi2MML.RESOLUTION_AS_IS + ")",
 				"--quantize-precision", "<length>", "Specify the minimum note length for quantization.",
 				"--no-quantize", "", "Prevent adjusting note length. Result will be more accurate but more complicated.",
-				"--octave-reverse", "", "Swap the octave symbol.",
+				"--octave-reverse", "", "Swap the octave symbol. (not recommended)",
 				"--use-triplet", "", "Use triplet syntax if possible. (really not so smart)",
 				"--use-spaces", "", "Put a space after each note/octave/instrument change.",
 				"--no-expression", "", "Ignore Expression messages (Control Change message 11).",
@@ -64,8 +64,7 @@ public class PetiteMM {
 
 		int argi = 0;
 
-		args = new String[]{"--octave-reverse", "--no-quantize", "--put-spaces",
-				"Untitled.mid"};
+		args = new String[]{"--no-quantize", "--put-spaces", "Untitled.mid"};
 
 		// dispatch option switches
 		while (argi < args.length && args[argi].startsWith("-")) {
@@ -98,7 +97,7 @@ public class PetiteMM {
 			} else if (args[argi].equals("--no-quantize")) {
 				opt.setQuantizationEnabled(false);
 			} else if (args[argi].equals("--octave-reverse")) {
-				opt.setOctaveReversed(true);
+				opt.setOctaveReversed(false);
 			} else if (args[argi].equals("--use-triplet")) {
 				opt.setTripletPreference(true);
 			} else if (args[argi].equals("--put-spaces")) {

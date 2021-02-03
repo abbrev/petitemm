@@ -96,7 +96,7 @@ public class Midi2MML {
 	/**
 	 * true if reverse the octave up/down effect.
 	 */
-	private boolean octaveReversed = false;
+	private boolean octaveReversed = true;
 
 	/**
 	 * true if replace triple single notes to triplet.
