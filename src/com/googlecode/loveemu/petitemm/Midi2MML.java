@@ -124,9 +124,9 @@ public class Midi2MML {
 	private double multiplyVolumes = 1.0;
 	
 	/**
-	 * true if panning volume adjusting should be avoided.
+	 * true if panning volume correction should be avoided.
 	 */
-	private boolean noPanAdjust = false;
+	private boolean noPanCorrection = false;
 
 	/**
 	 * true if write debug informations to stdout.
@@ -201,7 +201,7 @@ public class Midi2MML {
 		this.noControlChanges = obj.noControlChanges;
 		this.noExpression = obj.noExpression;
 		this.multiplyVolumes = obj.multiplyVolumes;
-		this.noPanAdjust = obj.noPanAdjust;
+		this.noPanCorrection = obj.noPanCorrection;
 	}
 
 	/**
@@ -381,12 +381,12 @@ public class Midi2MML {
 		this.noControlChanges = noControlChanges;
 	}
 	
-	public boolean getNoPanAdjust() {
-		return noPanAdjust;
+	public boolean getNoPanCorrection() {
+		return noPanCorrection;
 	}
 	
-	public void setNoPanAdjust(boolean noPanAdjust) {
-		this.noPanAdjust = noPanAdjust;
+	public void setNoPanCorrection(boolean noPanCorrection) {
+		this.noPanCorrection = noPanCorrection;
 	}
 
 	/**
@@ -733,7 +733,7 @@ public class Midi2MML {
 
 		sb.append(LINE_SEPARATOR + "; Pan macros" + LINE_SEPARATOR);
 		for (int pan : pannings) {
-			int y = Utils.getClosestValue(SMWTables.PAN_TABLE, pan);
+			int y = findPanIndex(pan);
 			String macro = String.format("\"Y%02X = %s%d\"%s", pan, mmlSymbol.getPan(), y, LINE_SEPARATOR);
 			sb.append(macro);
 		}
@@ -745,30 +745,74 @@ public class Midi2MML {
 			int exp = volume.expression;
 			int pan = volume.pan;
 			
-			double coeff = ((double) vol / 127.0) * Math.pow((double) qnt / 127.0, 2.0)
-					* Math.pow((double) exp / 127.0, 2.0);
-			int index = (int) Math.round(coeff * this.multiplyVolumes * 77.0);
-			int amplify = 0;
-			if (index > 77) {
-				amplify = (int) (256.0 * (((double) index) / 77.0 - 1.0));
-				if (amplify > 255) {
-					throw new IllegalArgumentException("Volume multiplier is too high.");
-				}
-				index = 77;
+			// Find which SMW panning better approximates the real panning
+			int index = findPanIndex(pan);
+			
+			// Compute the volume factor
+			double volFactor = ((double) vol / 127.0) * ((double) qnt / 127.0) * ((double) exp / 127.0);
+			
+			// If we have to correct the volume based on the panning,
+			// reduce it depending on how louder the panning is compared to the center.
+			if(!getNoPanCorrection() && index != 10) {
+				int rightIndex = index > 10 ? index : 20 - index;
+				double correction = (double) SMWTables.PAN_VALUES[10] / (double) SMWTables.PAN_VALUES[rightIndex];
+				volFactor *= Math.sqrt(correction);
 			}
-			int v = SMWTables.VOLUME_TABLE[index];
-			String macro;
-			if(getNoPanAdjust()) {
-				macro = String.format("\"V%02XQ%02XE%02X = %s%d\"%s", vol, qnt, exp,
-						mmlSymbol.getVolume(), v, LINE_SEPARATOR);
-			} else {
-				macro = String.format("\"V%02XQ%02XE%02XP%02X = %s%d\"%s", vol, qnt, exp,
-						pan, mmlSymbol.getVolume(), v, LINE_SEPARATOR);
+			
+			// Now find the final volume value to output, also taking into
+			// account the multiplying factor.
+			int v = (int) Math.round(255.0 * volFactor * Math.sqrt(getMultiplyVolumes()));
+			
+			// If the value is too high, throw an exception.
+			if(v > 255) {
+				throw new IllegalArgumentException(
+						String.format("Multiply factor %f is too high!", getMultiplyVolumes()));
 			}
+			
+			// Now generate the macro.
+			String panS = getNoPanCorrection() ? "" : String.format("P%02X", pan);
+			String macro = String.format("\"V%02XQ%02XE%02X%s = %s%d\"%s", vol, qnt, exp, panS,
+					mmlSymbol.getVolume(), v, LINE_SEPARATOR);
 			sb.append(macro);
 		}
 		sb.append(LINE_SEPARATOR);
 		return sb;
+	}
+	
+	private int findPanIndex(int pan) {
+		switch(pan) {
+		case 0:
+			return 20;
+		case 64:
+			return 10;
+		case 127:
+			return 0;
+		default:
+			break;
+		}
+		
+		double panFactor = (double) pan / (double) (128-pan);
+		
+		double previous = Double.POSITIVE_INFINITY;
+		double current;
+		int index;
+		
+		for(index = 0; index <= 20; index++) {
+			if(SMWTables.PAN_VALUES[index] == 0) {
+				current = Double.POSITIVE_INFINITY;
+			} else {
+				current = (double) SMWTables.PAN_VALUES[20-index] / (double) SMWTables.PAN_VALUES[index];
+			}
+			
+			double diff = current - panFactor;
+			if(index != 0 && diff * previous <= 0) {
+				return Math.abs(diff) <= Math.abs(previous) ? index : index - 1;
+			}
+			
+			previous = diff;
+		}
+		
+		return 0;
 	}
 
 	/**
@@ -1028,12 +1072,8 @@ public class Midi2MML {
 			volumes.add(newVolume);
 		}
 		String space = putSpaces ? " " : "";
-		String sVol;
-		if(getNoPanAdjust()) {
-			sVol = String.format("%02XQ%02XE%02X%s", volume, velocity, expression, space);
-		} else {
-			sVol = String.format("%02XQ%02XE%02XP%02X%s", volume, velocity, expression, pan, space);
-		}
+		String panS = getNoPanCorrection() ? "" : String.format("P%02X", pan);
+		String sVol = String.format("%02XQ%02XE%02X%s%s", volume, velocity, expression, panS, space);
 		addControlChange(mmlEvents, new MMLEvent(mmlSymbol.getVolumeMacro(), new String[]{sVol}));
 	}
 	

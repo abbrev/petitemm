@@ -28,7 +28,7 @@ public class PetiteMM {
 			"--no-control-changes", "", "Ignore control changes messages (instrument, volume, pan).",
 			"--no-expression", "", "Ignore Expression messages (Control Change message 11) when computing volumes.",
 			"--multiply-volumes", "<factor>", "Multiply all the volumes by a given amount.",
-			"--no-pan-adjust", "", "Don't adjust volumes based on the panning value."};
+			"--no-pan-correction", "", "Don't adjust volumes based on the panning value."};
 
 	/**
 	 * Removes the extension from a filename.
@@ -66,7 +66,7 @@ public class PetiteMM {
 
 		int argi = 0;
 
-		//args = new String[]{"--no-quantize", "--put-spaces", "Untitled.mid"};
+		//args = new String[]{"--no-quantize", "--put-spaces", "--multiply-volumes", "1.0", "Untitled.mid"};
 		
 		// dispatch option switches
 		while (argi < args.length && args[argi].startsWith("-")) {
@@ -113,8 +113,8 @@ public class PetiteMM {
 			case "--no-control-changes":
 				opt.setNoControlChanges(true);
 				break;
-			case "--no-pan-adjust":
-				opt.setNoPanAdjust(true);
+			case "--no-pan-correction":
+				opt.setNoPanCorrection(true);
 				break;
 			default:
 				throw new IllegalArgumentException("Unsupported option [" + args[argi] + "]");
