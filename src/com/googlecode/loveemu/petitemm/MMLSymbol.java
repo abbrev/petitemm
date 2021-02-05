@@ -91,6 +91,7 @@ public class MMLSymbol {
 	 * Construct a new MML symbol set.
 	 */
 	public MMLSymbol() {
+		super();
 	}
 	
 	/**
@@ -251,4 +252,14 @@ public class MMLSymbol {
 	public void setVolume(String volume) {
 		this.volume = volume;
 	}
+	
+	public boolean isNote(String command) {
+		for(String note : notes) {
+			if(command.startsWith(note)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
 }

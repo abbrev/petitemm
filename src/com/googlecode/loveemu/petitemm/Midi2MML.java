@@ -705,9 +705,9 @@ public class Midi2MML {
 		boolean firstTrackWrite = true;
 		for (Midi2MMLTrack mmlTrack : mmlTracks) {
 			if (!mmlTrack.isEmpty()) {
-				if (firstTrackWrite)
+				if (firstTrackWrite) {
 					firstTrackWrite = false;
-				else {
+				} else {
 					writer.append(LINE_SEPARATOR);
 					writer.append(mmlSymbol.getTrackEnd());
 					writer.append(LINE_SEPARATOR);

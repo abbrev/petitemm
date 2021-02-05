@@ -333,6 +333,8 @@ class Midi2MMLTrack {
 	 */
 	void writeMML(StringBuilder writer) {
 		if(!mmlEventList.isEmpty()) {
+			this.trimIfEmpty();
+			
 			StringBuilder mmlBuffer = new StringBuilder();
 			
 			// Satanic way to solve ties issues with commands inside notes
@@ -398,6 +400,35 @@ class Midi2MMLTrack {
 			}
 		}
 		return false;
+	}
+	
+	private void trimIfEmpty() {
+		boolean beginning = true;
+		boolean empty = true;
+		MMLEvent keepThis = new MMLEvent();
+		for(MMLEvent event : mmlEventList) {
+			String command = event.getCommand();
+			if(beginning) {
+				if(command.equals(mmlSymbol.getTempo())) {
+					keepThis = event;
+				} else if(!command.equals(" ") && !command.equals("\n")) {
+					if(mmlSymbol.isNote(command)) {
+						empty = false;
+						break;
+					}
+					beginning = false;
+				}
+			} else {
+				if(mmlSymbol.isNote(command) || command.equals(mmlSymbol.getTempo())) {
+					empty = false;
+					break;
+				}
+			}
+		}
+		if(empty) {
+			mmlEventList.clear();
+			mmlEventList.add(keepThis);
+		}
 	}
 	
 	/**
