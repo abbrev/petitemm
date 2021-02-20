@@ -476,8 +476,7 @@ public class Midi2MML {
 
 		// reset track parameters
 		Midi2MMLTrack[] mmlTracks = new Midi2MMLTrack[trackCount];
-		int[] noteIndex = new int[trackCount];
-		int[] currNoteIndex = new int[trackCount];
+		
 		for (int trackIndex = 0; trackIndex < trackCount; trackIndex++) {
 			mmlTracks[trackIndex] = new Midi2MMLTrack(mmlSymbol);
 			mmlTracks[trackIndex].setUseTriplet(useTriplet);
@@ -514,10 +513,8 @@ public class Midi2MML {
 
 					// dump for debug
 					if (DEBUG_DUMP) {
-						System.out
-								.format("MidiEvent: track=%d,tick=%d<%s>,message=%s%n", trackIndex, event.getTick(),
-										MidiTimeSignature.getMeasureTickString(event.getTick(), timeSignatures,
-												seq.getResolution()),
+						System.out.format("MidiEvent: track=%d,tick=%d<%s>,message=%s%n", trackIndex, event.getTick(),
+										MidiTimeSignature.getMeasureTickString(event.getTick(), timeSignatures, seq.getResolution()),
 										byteArrayToString(event.getMessage().getMessage()));
 					}
 
@@ -531,97 +528,15 @@ public class Midi2MML {
 
 						if (message.getCommand() == ShortMessage.NOTE_OFF
 								|| (message.getCommand() == ShortMessage.NOTE_ON && message.getData2() == 0)) {
-							MidiNote midiNextNote = (currNoteIndex[trackIndex] + 1 < midiNotes.size())
-									? midiNotes.get(currNoteIndex[trackIndex] + 1)
-									: null;
-							
-							mmlTrack.setMidNote(false);
-									
-							long minLength = tick - mmlLastTick;
-							long maxLength = ((midiNextNote != null)
-									? midiNextNote.getTime()
-									: midiTracksEndTick[trackIndex]) - mmlLastTick;
-							if (message.getData1() == mmlTrack.getNoteNumber() && minLength != 0) {
-								if (DEBUG_DUMP) {
-									System.out.format(
-											"Note Off: track=%d,tick=%d<%s>,mmlLastTick=%d<%s>",
-											trackIndex, tick,
-											MidiTimeSignature.getMeasureTickString(tick, timeSignatures,
-													seq.getResolution()),
-											mmlLastTick,
-											MidiTimeSignature.getMeasureTickString(mmlLastTick, timeSignatures,
-													seq.getResolution()));
-								}
-								
-								long length = quantize(seq, noteConv, minLength, maxLength);
-								
-								if(DEBUG_DUMP) {
-									System.out.format(",next=%s%n",
-											(midiNextNote != null) ? midiNextNote.toString() : "null");
-								}
-
-								mmlTrack.setTick(mmlLastTick + length);
-								mmlTrack.setNoteNumber(MMLNoteConverter.KEY_REST);
-							}
+							handleNoteOffMessage(noteConv, mmlTrack, message, midiNotes, timeSignatures,
+									midiTracksEndTick, seq, mmlLastTick, tick, trackIndex);
 						} else if (message.getCommand() == ShortMessage.NOTE_ON) {
-							int noteNumber = message.getData1();
-							int noteOctave = noteNumber / 12 - 2;
-
-							int velocity = message.getData2();
-							if (velocity != mmlTrack.getCurrentVelocity()) {
-								mmlTrack.setCurrentVelocity(velocity);
-								addCurrentVolumeEvent(mmlEvents, mmlTrack);
-							}
-
-							// write some initialization for the first note
-							if (mmlTrack.isFirstNote()) {
-								mmlTrack.setOctave(noteOctave);
-								mmlTrack.setFirstNote(false);
-								mmlEvents.add(new MMLEvent(mmlSymbol.getOctave(),
-										new String[]{String.format("%d", noteOctave)}));
-
-								if (putSpaces) {
-									mmlEvents.add(new MMLEvent(" "));
-								}
-							}
-
-							// remember new note
-							mmlTrack.setTick(tick);
-							mmlTrack.setNoteNumber(noteNumber);
-
-							currNoteIndex[trackIndex] = noteIndex[trackIndex];
-							noteIndex[trackIndex]++;
-
-							// Find next NOTE_OFF message to compute note length
-							long currentNoteLastTick = track.ticks();
-							for (int j = mmlTrack.getMidiEventIndex(); j < track.size(); j++) {
-								MidiEvent e = track.get(j);
-								if (e.getMessage() instanceof ShortMessage) {
-									ShortMessage sm = (ShortMessage) e.getMessage();
-									if (sm.getCommand() == ShortMessage.NOTE_OFF) {
-										currentNoteLastTick = e.getTick();
-										break;
-									}
-								}
-							}
-							mmlTrack.setCurrentNoteLastTick(currentNoteLastTick);
+							handleNoteOnMessage(track, mmlTrack, mmlEvents, message, tick);
 						} else {
-							List<MMLEvent> newMML = convertMidiEventToMML(event, mmlTrack);
-							if (!newMML.isEmpty()) {
-								mmlEvents.addAll(newMML);
-								if (tick >= mmlLastTick) {
-									mmlTrack.setTick(tick);
-								}
-							}
+							handleOtherMessages(mmlTrack, mmlEvents, event, mmlLastTick, tick);
 						}
 					} else {
-						List<MMLEvent> newMML = convertMidiEventToMML(event, mmlTrack);
-						if (!newMML.isEmpty()) {
-							mmlEvents.addAll(newMML);
-							if (tick >= mmlLastTick) {
-								mmlTrack.setTick(tick);
-							}
-						}
+						handleOtherMessages(mmlTrack, mmlEvents, event, mmlLastTick, tick);
 					}
 
 					// final event, seek to the last whether the last event has been dispatched.
@@ -641,70 +556,9 @@ public class Midi2MML {
 						}
 
 						if (mmlLastNoteNumber == MMLNoteConverter.KEY_REST) {
-							List<Integer> lengths = noteConv
-									.getPrimitiveNoteLengths((int) (mmlTrack.getTick() - mmlLastTick), false);
-							int totalLength = 0;
-							for (int length : lengths) {
-								totalLength += length;
-								mmlTrack.add(new MMLEvent(noteConv.getNote(length, mmlLastNoteNumber)));
-
-								if (putSpaces) {
-									mmlTrack.add(new MMLEvent(" "));
-								}
-
-								int lastMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick, timeSignatures,
-										seq.getResolution());
-								int currentMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick + totalLength,
-										timeSignatures, seq.getResolution());
-								if (currentMeasure != lastMeasure) {
-									mmlTrack.add(new MMLEvent(LINE_SEPARATOR));
-									mmlTrack.setMeasure(currentMeasure);
-								}
-							}
+							handleRest(noteConv, mmlTrack, mmlLastTick, mmlLastNoteNumber, seq, timeSignatures);
 						} else {
-							int mmlOctave = mmlTrack.getOctave();
-							int noteOctave = mmlLastNoteNumber / 12 - 2;
-
-							while (mmlOctave < noteOctave) {
-								mmlTrack.add(new MMLEvent(
-										!octaveReversed ? mmlSymbol.getOctaveUp() : mmlSymbol.getOctaveDown()));
-								mmlOctave++;
-								if (putSpaces && (mmlOctave == noteOctave)) {
-									mmlTrack.add(new MMLEvent(" "));
-								}
-							}
-							while (mmlOctave > noteOctave) {
-								mmlTrack.add(new MMLEvent(
-										!octaveReversed ? mmlSymbol.getOctaveDown() : mmlSymbol.getOctaveUp()));
-								mmlOctave--;
-								if (putSpaces && (mmlOctave == noteOctave)) {
-									mmlTrack.add(new MMLEvent(" "));
-								}
-							}
-							mmlTrack.setOctave(noteOctave);
-							
-							if (mmlTrack.getMidNote() && tick < mmlTrack.getCurrentNoteLastTick()) {
-								//mmlEvents.add(new MMLEvent(mmlSymbol.getTie()));
-								mmlLastNoteNumber = MMLNoteConverter.KEY_TIE;
-							}
-							
-							mmlTrack.setMidNote(true);
-							
-							mmlTrack.add(new MMLEvent(
-									noteConv.getNote((int) (mmlTrack.getTick() - mmlLastTick), mmlLastNoteNumber)));
-
-							if (putSpaces) {
-								mmlTrack.add(new MMLEvent(" "));
-							}
-
-							int lastMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick, timeSignatures,
-									seq.getResolution());
-							int currentMeasure = MidiTimeSignature.getMeasureByTick(mmlTrack.getTick(), timeSignatures,
-									seq.getResolution());
-							if (currentMeasure != lastMeasure) {
-								mmlTrack.add(new MMLEvent(LINE_SEPARATOR));
-								mmlTrack.setMeasure(currentMeasure);
-							}
+							handleNote(noteConv, mmlTrack, mmlLastTick, mmlLastNoteNumber, seq, timeSignatures, tick);
 						}
 					}
 
@@ -738,6 +592,169 @@ public class Midi2MML {
 					writer.append(LINE_SEPARATOR);
 				}
 				mmlTrack.writeMML(writer);
+			}
+		}
+	}
+	
+	private void handleRest(MMLNoteConverter noteConv, Midi2MMLTrack mmlTrack, long mmlLastTick,
+			int mmlLastNoteNumber, Sequence seq, List<MidiTimeSignature> timeSignatures) {
+		List<Integer> lengths = noteConv
+				.getPrimitiveNoteLengths((int) (mmlTrack.getTick() - mmlLastTick), false);
+		int totalLength = 0;
+		for (int length : lengths) {
+			totalLength += length;
+			mmlTrack.add(new MMLEvent(noteConv.getNote(length, mmlLastNoteNumber)));
+
+			if (putSpaces) {
+				mmlTrack.add(new MMLEvent(" "));
+			}
+
+			int lastMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick, timeSignatures,
+					seq.getResolution());
+			int currentMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick + totalLength,
+					timeSignatures, seq.getResolution());
+			if (currentMeasure != lastMeasure) {
+				mmlTrack.add(new MMLEvent(LINE_SEPARATOR));
+				mmlTrack.setMeasure(currentMeasure);
+			}
+		}
+	}
+	
+	private void handleNote(MMLNoteConverter noteConv, Midi2MMLTrack mmlTrack, long mmlLastTick,
+			int mmlLastNoteNumber, Sequence seq, List<MidiTimeSignature> timeSignatures, long tick) {
+		int mmlOctave = mmlTrack.getOctave();
+		int noteOctave = mmlLastNoteNumber / 12 - 2;
+
+		while (mmlOctave < noteOctave) {
+			mmlTrack.add(new MMLEvent(
+					!octaveReversed ? mmlSymbol.getOctaveUp() : mmlSymbol.getOctaveDown()));
+			mmlOctave++;
+			if (putSpaces && (mmlOctave == noteOctave)) {
+				mmlTrack.add(new MMLEvent(" "));
+			}
+		}
+		while (mmlOctave > noteOctave) {
+			mmlTrack.add(new MMLEvent(
+					!octaveReversed ? mmlSymbol.getOctaveDown() : mmlSymbol.getOctaveUp()));
+			mmlOctave--;
+			if (putSpaces && (mmlOctave == noteOctave)) {
+				mmlTrack.add(new MMLEvent(" "));
+			}
+		}
+		mmlTrack.setOctave(noteOctave);
+		
+		if (mmlTrack.getMidNote() && tick <= mmlTrack.getCurrentNoteLastTick()) {
+			//mmlEvents.add(new MMLEvent(mmlSymbol.getTie()));
+			mmlLastNoteNumber = MMLNoteConverter.KEY_TIE;
+		}
+		
+		mmlTrack.setMidNote(true);
+		
+		mmlTrack.add(new MMLEvent(noteConv.getNote((int) (mmlTrack.getTick() - mmlLastTick), mmlLastNoteNumber)));
+
+		if (putSpaces) {
+			mmlTrack.add(new MMLEvent(" "));
+		}
+
+		int lastMeasure = MidiTimeSignature.getMeasureByTick(mmlLastTick, timeSignatures, seq.getResolution());
+		int currentMeasure = MidiTimeSignature.getMeasureByTick(mmlTrack.getTick(), timeSignatures, seq.getResolution());
+		if (currentMeasure != lastMeasure) {
+			mmlTrack.add(new MMLEvent(LINE_SEPARATOR));
+			mmlTrack.setMeasure(currentMeasure);
+		}
+	}
+	
+	private void handleNoteOffMessage(MMLNoteConverter noteConv, Midi2MMLTrack mmlTrack, ShortMessage message,
+			List<MidiNote> midiNotes, List<MidiTimeSignature> timeSignatures, long[] midiTracksEndTick,
+			Sequence seq, long mmlLastTick, long tick, int trackIndex) {
+		int nextNoteIndex = mmlTrack.getCurrentNoteIndex() + 1;
+		MidiNote midiNextNote = (nextNoteIndex < midiNotes.size())
+				? midiNotes.get(nextNoteIndex)
+				: null;
+		
+		mmlTrack.setMidNote(false);
+				
+		long minLength = tick - mmlLastTick;
+		long maxLength = ((midiNextNote != null)
+				? midiNextNote.getTime()
+				: midiTracksEndTick[trackIndex]) - mmlLastTick;
+		if (message.getData1() == mmlTrack.getNoteNumber() && minLength != 0) {
+			if (DEBUG_DUMP) {
+				System.out.format(
+						"Note Off: track=%d,tick=%d<%s>,mmlLastTick=%d<%s>",
+						trackIndex, tick,
+						MidiTimeSignature.getMeasureTickString(tick, timeSignatures,
+								seq.getResolution()),
+						mmlLastTick,
+						MidiTimeSignature.getMeasureTickString(mmlLastTick, timeSignatures,
+								seq.getResolution()));
+			}
+			
+			long length = quantize(seq, noteConv, minLength, maxLength);
+			
+			if(DEBUG_DUMP) {
+				System.out.format(",next=%s%n",
+						(midiNextNote != null) ? midiNextNote.toString() : "null");
+			}
+
+			mmlTrack.setTick(mmlLastTick + length);
+			mmlTrack.setNoteNumber(MMLNoteConverter.KEY_REST);
+		}
+	}
+	
+	private void handleNoteOnMessage(Track track, Midi2MMLTrack mmlTrack, List<MMLEvent> mmlEvents,
+			ShortMessage message, long tick) {
+		int noteNumber = message.getData1();
+		int noteOctave = noteNumber / 12 - 2;
+		
+		mmlTrack.setMidNote(false);
+
+		int velocity = message.getData2();
+		if (velocity != mmlTrack.getCurrentVelocity()) {
+			mmlTrack.setCurrentVelocity(velocity);
+			addCurrentVolumeEvent(mmlEvents, mmlTrack);
+		}
+
+		// write some initialization for the first note
+		if (mmlTrack.isFirstNote()) {
+			mmlTrack.setOctave(noteOctave);
+			mmlTrack.setFirstNote(false);
+			mmlEvents.add(new MMLEvent(mmlSymbol.getOctave(),
+					new String[]{String.format("%d", noteOctave)}));
+
+			if (putSpaces) {
+				mmlEvents.add(new MMLEvent(" "));
+			}
+		}
+
+		// remember new note
+		mmlTrack.setTick(tick);
+		mmlTrack.setNoteNumber(noteNumber);
+		
+		mmlTrack.increaseNoteIndex();
+
+		// Find next NOTE_OFF message to compute note length
+		long currentNoteLastTick = track.ticks();
+		for (int j = mmlTrack.getMidiEventIndex(); j < track.size(); j++) {
+			MidiEvent e = track.get(j);
+			if (e.getMessage() instanceof ShortMessage) {
+				ShortMessage sm = (ShortMessage) e.getMessage();
+				if (sm.getCommand() == ShortMessage.NOTE_OFF) {
+					currentNoteLastTick = e.getTick();
+					break;
+				}
+			}
+		}
+		mmlTrack.setCurrentNoteLastTick(currentNoteLastTick);
+	}
+	
+	private void handleOtherMessages(Midi2MMLTrack mmlTrack, List<MMLEvent> mmlEvents, MidiEvent event,
+			long mmlLastTick, long tick) throws InvalidMidiDataException {
+		List<MMLEvent> newMML = convertMidiEventToMML(event, mmlTrack);
+		if (!newMML.isEmpty()) {
+			mmlEvents.addAll(newMML);
+			if (tick >= mmlLastTick) {
+				mmlTrack.setTick(tick);
 			}
 		}
 	}

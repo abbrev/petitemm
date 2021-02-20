@@ -283,8 +283,16 @@ public class MMLSymbol {
 		return false;
 	}
 	
-	public boolean isNoteOrRest(String command) {
-		return isRest(command) || isNote(command);
+	public boolean isTie(String command) {
+		return command.startsWith(tie);
+	}
+	
+	public boolean isNoteOrTie(String command) {
+		return isNote(command) || isTie(command);
+	}
+	
+	public boolean isOctaveChange(String command) {
+		return command.matches("o[-]?\\d+") || command.matches("<+|>+");
 	}
 	
 }

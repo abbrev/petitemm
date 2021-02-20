@@ -68,6 +68,9 @@ class Midi2MMLTrack {
 	
 	private boolean midNote = false;
 	
+	private int noteIndex = 0;
+	private int currentNoteIndex = 0;
+	
 	/**
 	 * Construct new MML track conversion object.
 	 * 
@@ -75,6 +78,27 @@ class Midi2MMLTrack {
 	 */
 	Midi2MMLTrack(MMLSymbol mmlSymbol) {
 		this.mmlSymbol = mmlSymbol;
+	}
+	
+	public int getNoteIndex() {
+		return noteIndex;
+	}
+	
+	public void setNoteIndex(int noteIndex) {
+		this.noteIndex = noteIndex;
+	}
+	
+	public int getCurrentNoteIndex() {
+		return currentNoteIndex;
+	}
+	
+	public void setCurrentNoteIndex(int currNoteIndex) {
+		this.currentNoteIndex = currNoteIndex;
+	}
+	
+	public void increaseNoteIndex() {
+		currentNoteIndex = noteIndex;
+		noteIndex++;
 	}
 	
 	public boolean getMidNote() {
@@ -347,11 +371,10 @@ class Midi2MMLTrack {
 				}
 				skip = false;
 				MMLEvent event = mmlEventList.get(i);
+				String command = event.getCommand();
 				
 				/*
-				if(event.getCommand().equals(mmlSymbol.getTie())) {
-					skip = false;
-					
+				if(command.equals(mmlSymbol.getTie())) {
 					// Check if we have a tie followed by a note command
 					// If yes, remove the note name and skip it
 					if(i < mmlEventList.size() - 1) {
@@ -366,13 +389,12 @@ class Midi2MMLTrack {
 							skip = true;
 						}
 					}
-				} else if(event.getCommand().equals(mmlSymbol.getVolumeMacro())) {
-					// Optimize consecutive volume commands
-					skip = checkIfCommandNext(mmlSymbol.getVolumeMacro(), i);
-				} else if(event.getCommand().equals(mmlSymbol.getPanMacro())) {
-					skip = checkIfCommandNext(mmlSymbol.getPanMacro(), i);
+				} else */
+				if(command.equals(mmlSymbol.getVolumeMacro()) ||
+						command.equals(mmlSymbol.getPanMacro()) ||
+						command.equals(mmlSymbol.getInstrumentMacro())) {
+					skip = checkIfCommandNext(command, i);
 				}
-				*/
 				
 				if(!skip) {
 					// If not set to skip the current event, write it.
@@ -398,10 +420,10 @@ class Midi2MMLTrack {
 			String other = mmlEventList.get(j).getCommand();
 			if(!other.equals(" ")) {
 				if(other.equals(command)) {
-					// If there's another volume command, we don't need to write the current one
+					// If there's another command of the same type, we don't need to write the current one.
 					return true;
-				} else if(mmlSymbol.isNoteOrRest(other) || other.matches("(o\\d+)|([<>]+)")) {
-					// If there's a note (non-rest) next, we have to write the volume command
+				} else if(mmlSymbol.isNoteOrTie(other) || mmlSymbol.isOctaveChange(other)) {
+					// If there's a note next, we have to write the volume command.
 					return false;
 				}
 			}
