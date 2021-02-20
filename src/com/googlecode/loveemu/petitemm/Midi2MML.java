@@ -62,6 +62,16 @@ public class Midi2MML {
 	public static final int DEFAULT_MAX_DOT_COUNT = -1;
 
 	public static final String LINE_SEPARATOR = System.getProperty("line.separator");
+	
+	/**
+	 * MML tempo = BPM * TEMPO_FACTOR.
+	 */
+	public static final double TEMPO_FACTOR = 0.4096;
+	
+	/**
+	 * How many ticks in a quarter note in MML notation.
+	 */
+	public static final int MML_TPQN = 48;
 
 	/**
 	 * MML symbol set.
@@ -127,6 +137,11 @@ public class Midi2MML {
 	 * true if panning volume correction should be avoided.
 	 */
 	private boolean noPanCorrection = false;
+	
+	/**
+	 * true if lengths should be converted to ticks.
+	 */
+	private boolean useTicks = false;
 
 	/**
 	 * true if write debug informations to stdout.
@@ -202,6 +217,7 @@ public class Midi2MML {
 		this.noExpression = obj.noExpression;
 		this.multiplyVolumes = obj.multiplyVolumes;
 		this.noPanCorrection = obj.noPanCorrection;
+		this.useTicks = obj.useTicks;
 	}
 
 	/**
@@ -311,6 +327,14 @@ public class Midi2MML {
 
 	public void setMultiplyVolumes(double m) {
 		this.multiplyVolumes = m;
+	}
+	
+	public boolean getUseTicks() {
+		return useTicks;
+	}
+	
+	public void setUseTicks(boolean useTicks) {
+		this.useTicks = useTicks;
 	}
 	
 	/**
@@ -459,7 +483,7 @@ public class Midi2MML {
 			mmlTracks[trackIndex].setUseTriplet(useTriplet);
 		}
 		// reset subsystems
-		MMLNoteConverter noteConv = new MMLNoteConverter(mmlSymbol, seq.getResolution(), maxDots);
+		MMLNoteConverter noteConv = new MMLNoteConverter(mmlSymbol, seq.getResolution(), maxDots, useTicks);
 
 		fixEvents(seq);
 
@@ -660,7 +684,8 @@ public class Midi2MML {
 							mmlTrack.setOctave(noteOctave);
 							
 							if (mmlTrack.getMidNote() && tick < mmlTrack.getCurrentNoteLastTick()) {
-								mmlEvents.add(new MMLEvent(mmlSymbol.getTie()));
+								//mmlEvents.add(new MMLEvent(mmlSymbol.getTie()));
+								mmlLastNoteNumber = MMLNoteConverter.KEY_TIE;
 							}
 							
 							mmlTrack.setMidNote(true);
@@ -795,9 +820,8 @@ public class Midi2MML {
 		
 		double previous = Double.POSITIVE_INFINITY;
 		double current;
-		int index;
 		
-		for(index = 0; index <= 20; index++) {
+		for(int index = 0; index <= 20; index++) {
 			if(SMWTables.PAN_VALUES[index] == 0) {
 				current = Double.POSITIVE_INFINITY;
 			} else {
@@ -1048,7 +1072,7 @@ public class Midi2MML {
 
 					int usLenOfQN = ((data[0] & 0xff) << 16) | ((data[1] & 0xff) << 8) | (data[2] & 0xff);
 					double bpm = 60000000.0 / usLenOfQN;
-					bpm *= 256.0 / 625.0; // BPM to SNES tempo conversion
+					bpm *= TEMPO_FACTOR;	// BPM to N-SPC tempo conversion
 					mmlEvents.add(new MMLEvent(mmlSymbol.getTempo(), new String[]{String.format("%.0f", bpm)}));
 
 					if (putSpaces) {

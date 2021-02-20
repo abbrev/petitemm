@@ -28,7 +28,8 @@ public class PetiteMM {
 			"--no-control-changes", "", "Ignore control changes messages (instrument, volume, pan).",
 			"--no-expression", "", "Ignore Expression messages (Control Change message 11) when computing volumes.",
 			"--multiply-volumes", "<factor>", "Multiply all the volumes by a given amount.",
-			"--no-pan-correction", "", "Don't adjust volumes based on the panning value."};
+			"--no-pan-correction", "", "Don't adjust volumes based on the panning value.",
+			"--use-ticks", "", "Convert note lengths to MML tick notation."};
 
 	/**
 	 * Removes the extension from a filename.
@@ -66,7 +67,7 @@ public class PetiteMM {
 
 		int argi = 0;
 
-		//args = new String[]{"--no-quantize", "--put-spaces", "--multiply-volumes", "1.0", "Untitled.mid"};
+		args = new String[]{"--no-quantize", "--put-spaces", "--use-ticks", "Untitled.mid"};
 		
 		// dispatch option switches
 		while (argi < args.length && args[argi].startsWith("-")) {
@@ -116,6 +117,9 @@ public class PetiteMM {
 			case "--no-pan-correction":
 				opt.setNoPanCorrection(true);
 				break;
+			case "--use-ticks":
+				opt.setUseTicks(true);
+				break;
 			default:
 				throw new IllegalArgumentException("Unsupported option [" + args[argi] + "]");
 			}
@@ -161,10 +165,8 @@ public class PetiteMM {
 	}
 	
 	private static boolean convert(String midiFileName, String mmlFileName, Midi2MML options) {
-		// convert the given file
 		File midiFile = new File(midiFileName);
 		File mmlFile = new File(mmlFileName);
-
 		Midi2MML converter = new Midi2MML(options);
 		boolean success = false;
 
@@ -172,7 +174,6 @@ public class PetiteMM {
 			if (!midiFile.exists()) {
 				throw new FileNotFoundException(midiFile.getName() + " (The system cannot find the file specified)");
 			}
-
 			StringBuilder writer = new StringBuilder();
 			converter.writeMML(MidiSystem.getSequence(midiFile), writer);
 			StringBuilder mml = converter.writeMacros();

@@ -39,6 +39,8 @@ You can run PetiteMM manually with `java -jar PetiteMM.jar (options) input.mid [
 |
 |--no-pan-correction  |n/a              |Don't adjust the volume values based on the panning values, which is done to account for the fact that AMK's volumes get louder for pannings farther from the center.
 |
+|--use-ticks          |n/a              |Convert note lengths to MML tick notation.
+|
 
 Special Thanks
 --------------

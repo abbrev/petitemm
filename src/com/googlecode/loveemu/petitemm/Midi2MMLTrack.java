@@ -347,26 +347,33 @@ class Midi2MMLTrack {
 				}
 				skip = false;
 				MMLEvent event = mmlEventList.get(i);
+				
+				/*
 				if(event.getCommand().equals(mmlSymbol.getTie())) {
-					// In any case, remove the tie
-					// This removes random ties added during conversion
-					//skip = true;
+					skip = false;
 					
 					// Check if we have a tie followed by a note command
 					// If yes, remove the note name and skip it
 					if(i < mmlEventList.size() - 1) {
 						String nextCommand = mmlEventList.get(i+1).getCommand();
-						if(nextCommand.matches("[abcdefgr][+-]?\\d*\\.*")) {
+						if(mmlSymbol.isNoteOrRest(nextCommand)) {
 							mmlBuffer.append(event.getCommand());
 							mmlBuffer.append(nextCommand.replaceAll("[abcdefgr][+-]?", ""));
 							skip = true;
 							skipNext = true;
+						} else if(nextCommand.equals(mmlSymbol.getOctaveDown())
+								|| nextCommand.equals(mmlSymbol.getOctaveUp())) {
+							skip = true;
 						}
 					}
 				} else if(event.getCommand().equals(mmlSymbol.getVolumeMacro())) {
 					// Optimize consecutive volume commands
-					skip = checkIfVolumeNext(i);
+					skip = checkIfCommandNext(mmlSymbol.getVolumeMacro(), i);
+				} else if(event.getCommand().equals(mmlSymbol.getPanMacro())) {
+					skip = checkIfCommandNext(mmlSymbol.getPanMacro(), i);
 				}
+				*/
+				
 				if(!skip) {
 					// If not set to skip the current event, write it.
 					mmlBuffer.append(event.toString());
@@ -386,14 +393,14 @@ class Midi2MMLTrack {
 		}
 	}
 	
-	private boolean checkIfVolumeNext(int i) {
-		for(int j = i + 1; j < mmlEventList.size(); j++) {
-			String command = mmlEventList.get(j).getCommand();
-			if(!command.equals(" ")) {
-				if(command.equals(mmlSymbol.getVolumeMacro())) {
+	private boolean checkIfCommandNext(String command, int index) {
+		for(int j = index + 1; j < mmlEventList.size(); j++) {
+			String other = mmlEventList.get(j).getCommand();
+			if(!other.equals(" ")) {
+				if(other.equals(command)) {
 					// If there's another volume command, we don't need to write the current one
 					return true;
-				} else if(command.matches("(o\\d+)|([<>]+)|([abcdefgr\\^][+-]?\\d*\\.*)(\\^\\d*\\.*)*")) {
+				} else if(mmlSymbol.isNoteOrRest(other) || other.matches("(o\\d+)|([<>]+)")) {
 					// If there's a note (non-rest) next, we have to write the volume command
 					return false;
 				}
@@ -405,7 +412,7 @@ class Midi2MMLTrack {
 	private void trimIfEmpty() {
 		boolean beginning = true;
 		boolean empty = true;
-		MMLEvent keepThis = new MMLEvent();
+		MMLEvent keepThis = new MMLEvent("");
 		for(MMLEvent event : mmlEventList) {
 			String command = event.getCommand();
 			if(beginning) {
@@ -419,7 +426,8 @@ class Midi2MMLTrack {
 					beginning = false;
 				}
 			} else {
-				if(mmlSymbol.isNote(command) || command.equals(mmlSymbol.getTempo())) {
+				if(mmlSymbol.isNote(command) || command.equals(mmlSymbol.getTempo())
+						|| command.equals(mmlSymbol.getOctave())) {
 					empty = false;
 					break;
 				}

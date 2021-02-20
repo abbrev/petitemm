@@ -88,6 +88,11 @@ public class MMLSymbol {
 	private String panMacro = "Y";
 	
 	/**
+	 * MML text for tick length.
+	 */
+	private String ticks = "=";
+	
+	/**
 	 * Construct a new MML symbol set.
 	 */
 	public MMLSymbol() {
@@ -111,6 +116,10 @@ public class MMLSymbol {
 		trackEnd = obj.trackEnd;
 		tripletStart = obj.tripletStart;
 		tripletEnd = obj.tripletEnd;
+		instrumentMacro = obj.instrumentMacro;
+		volumeMacro = obj.volumeMacro;
+		panMacro = obj.panMacro;
+		ticks = obj.ticks;
 	}
 	
 	public String getNote(int index) {
@@ -253,6 +262,18 @@ public class MMLSymbol {
 		this.volume = volume;
 	}
 	
+	public String getTicks() {
+		return ticks;
+	}
+	
+	public void setTicks(String ticks) {
+		this.ticks = ticks;
+	}
+	
+	public boolean isRest(String command) {
+		return command.startsWith(rest);
+	}
+	
 	public boolean isNote(String command) {
 		for(String note : notes) {
 			if(command.startsWith(note)) {
@@ -260,6 +281,10 @@ public class MMLSymbol {
 			}
 		}
 		return false;
+	}
+	
+	public boolean isNoteOrRest(String command) {
+		return isRest(command) || isNote(command);
 	}
 	
 }
