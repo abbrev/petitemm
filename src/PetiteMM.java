@@ -99,7 +99,6 @@ public class PetiteMM {
 					throw new IllegalArgumentException("Too few arguments for " + args[argi]);
 				}
 				opt.setQuantizePrecision(Integer.parseInt(args[++argi]));
-				argi += 1;
 			} else if (args[argi].equals("--no-quantize")) {
 				opt.setQuantizationEnabled(false);
 			} else if (args[argi].equals("--octave-reverse")) {

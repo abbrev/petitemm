@@ -45,12 +45,12 @@ public class MMLSymbol {
 	/**
 	 * MML text for increasing octave.
 	 */
-	private String octaveUp = "<";
+	private String octaveUp = ">";
 	
 	/**
 	 * MML text for decreasing octave.
 	 */
-	private String octaveDown = ">";
+	private String octaveDown = "<";
 	
 	/**
 	 * MML text for end of track.
