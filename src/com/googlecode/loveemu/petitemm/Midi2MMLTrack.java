@@ -326,7 +326,7 @@ class Midi2MMLTrack {
 	/**
 	 * Appends the specified MML event.
 	 * 
-	 * @param str MML event.
+	 * @param event MML event.
 	 */
 	public void add(MMLEvent event) {
 		mmlEventList.add(event);
@@ -335,7 +335,7 @@ class Midi2MMLTrack {
 	/**
 	 * Appends the specified MML events.
 	 * 
-	 * @param str Collection of MML events.
+	 * @param events Collection of MML events.
 	 */
 	public void addAll(Collection<MMLEvent> events) {
 		mmlEventList.addAll(events);
@@ -406,7 +406,6 @@ class Midi2MMLTrack {
 			if(useTriplet) {
 				mmlString = convertToTriplet(mmlString);
 			}
-			
 			writer.append(mmlString);
 			
 			if(!mmlString.endsWith(System.getProperty("line.separator"))) {

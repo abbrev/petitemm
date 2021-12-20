@@ -24,7 +24,7 @@ public class PetiteMM {
 			"--no-quantize", "", "Prevent adjusting note length. Result will be more accurate but more complicated.",
 			"--octave-reverse", "", "Swap the octave symbol. (not recommended)",
 			"--use-triplet", "", "Use triplet syntax if possible. (really not so smart)",
-			"--use-spaces", "", "Put a space after each note/octave/instrument/volume/pan change.",
+			"--put-spaces", "", "Put a space after each note/octave/instrument/volume/pan change.",
 			"--no-control-changes", "", "Ignore control changes messages (instrument, volume, pan).",
 			"--no-expression", "", "Ignore Expression messages (Control Change message 11) when computing volumes.",
 			"--multiply-volumes", "<factor>", "Multiply all the volumes by a given amount.",
@@ -66,12 +66,16 @@ public class PetiteMM {
 		String mmlFileName = null;
 
 		int argi = 0;
-
-		args = new String[]{"--no-quantize", "--put-spaces", "--use-ticks", "Untitled.mid"};
 		
 		// dispatch option switches
 		while (argi < args.length && args[argi].startsWith("-")) {
 			switch(args[argi]) {
+			case "--simple-output":
+				opt.setSimpleSetup(true);
+				System.out.println(opt.getSimpleSetup());
+				opt.setPutSpaces(true);
+				opt.setNoControlChanges(true);
+				break;
 			case "-o":
 				checkArgumentCount(args, argi);
 				mmlFileName = args[++argi];

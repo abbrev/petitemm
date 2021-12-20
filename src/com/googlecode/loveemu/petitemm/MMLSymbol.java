@@ -45,17 +45,17 @@ public class MMLSymbol {
 	/**
 	 * MML text for increasing octave.
 	 */
-	private String octaveUp = "<";
+	private String octaveUp = ">";
 	
 	/**
 	 * MML text for decreasing octave.
 	 */
-	private String octaveDown = ">";
+	private String octaveDown = "<";
 	
 	/**
-	 * MML text for end of track.
+	 * MML text for end of track. [OBSOLETED]
 	 */
-	private String trackEnd = ";";
+	//private String trackEnd = "#_ ;[REPLACE _ WITH CHANNEL NUMBER]";
 	
 	/**
 	 * MML text for triplet start.
@@ -113,7 +113,7 @@ public class MMLSymbol {
 		instrument = obj.instrument;
 		octaveUp = obj.octaveUp;
 		octaveDown = obj.octaveDown;
-		trackEnd = obj.trackEnd;
+		//trackEnd = obj.trackEnd;
 		tripletStart = obj.tripletStart;
 		tripletEnd = obj.tripletEnd;
 		instrumentMacro = obj.instrumentMacro;
@@ -190,13 +190,13 @@ public class MMLSymbol {
 		this.octaveDown = octaveDown;
 	}
 	
-	public String getTrackEnd() {
+	/*public String getTrackEnd() {
 		return trackEnd;
-	}
+	}*/
 	
-	public void setTrackEnd(String trackEnd) {
+	/*public void setTrackEnd(String trackEnd) {
 		this.trackEnd = trackEnd;
-	}
+	}*/
 	
 	public String getTripletStart(int totalLength) {
 		return tripletStart;

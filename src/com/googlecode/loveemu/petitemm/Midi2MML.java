@@ -49,7 +49,7 @@ public class Midi2MML {
 	/**
 	 * Default ticks per quarter note of target MML.
 	 */
-	public static final int DEFAULT_RESOLUTION = 48;
+	public static final int DEFAULT_RESOLUTION = 0;
 
 	/**
 	 * Default quantize precision value.
@@ -99,6 +99,11 @@ public class Midi2MML {
 	private int maxDots = DEFAULT_MAX_DOT_COUNT;
 
 	/**
+	 * true if simple output selected.
+	 */
+	private boolean simpleSetup = false;
+
+	/**
 	 * true if adjust note length for simplifying the conversion result.
 	 */
 	private boolean quantizationEnabled = true;
@@ -106,7 +111,7 @@ public class Midi2MML {
 	/**
 	 * true if reverse the octave up/down effect.
 	 */
-	private boolean octaveReversed = true;
+	private boolean octaveReversed = false;
 
 	/**
 	 * true if replace triple single notes to triplet.
@@ -206,6 +211,7 @@ public class Midi2MML {
 	public Midi2MML(Midi2MML obj) {
 		this.mmlSymbol = new MMLSymbol(obj.mmlSymbol);
 		this.maxDots = obj.maxDots;
+		this.simpleSetup = obj.simpleSetup;
 		this.quantizationEnabled = obj.quantizationEnabled;
 		this.octaveReversed = obj.octaveReversed;
 		this.useTriplet = obj.useTriplet;
@@ -266,6 +272,17 @@ public class Midi2MML {
 	 */
 	public boolean isQuantizationEnabled() {
 		return quantizationEnabled;
+	}
+
+	/**
+	 * Set whether to add the starting text for simple output.
+	 *
+	 * @param simpleSetup
+	 *            true if simple output option selected.
+	 */
+	public void setSimpleSetup(boolean simpleSetup) {
+		this.simpleSetup = simpleSetup;
+		System.out.println("Simpleness set!");
 	}
 
 	/**
@@ -396,7 +413,11 @@ public class Midi2MML {
 			throw new IllegalArgumentException("Quantize precision must be power of 2.");
 		this.quantizePrecision = quantizePrecision;
 	}
-	
+
+	public boolean getSimpleSetup() {
+		return simpleSetup;
+	}
+
 	public boolean getNoControlChanges() {
 		return noControlChanges;
 	}
@@ -582,16 +603,22 @@ public class Midi2MML {
 		}
 
 		boolean firstTrackWrite = true;
-		for (Midi2MMLTrack mmlTrack : mmlTracks) {
-			if (!mmlTrack.isEmpty()) {
+		System.out.println("Final check: " + simpleSetup);
+		if(simpleSetup) {
+			writer.append("#amk 2\n#0\n");
+			System.out.println("appended!");
+		}
+		for (int i = 0; i < mmlTracks.length; i++) {
+			if (!mmlTracks[i].isEmpty()) {
 				if (firstTrackWrite) {
 					firstTrackWrite = false;
 				} else {
 					writer.append(LINE_SEPARATOR);
-					writer.append(mmlSymbol.getTrackEnd());
+					writer.append("#" + i);
 					writer.append(LINE_SEPARATOR);
 				}
-				mmlTrack.writeMML(writer);
+				System.out.println(getSimpleSetup());
+				mmlTracks[i].writeMML(writer);
 			}
 		}
 	}
