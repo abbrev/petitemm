@@ -202,7 +202,7 @@ public class MidiTimeSignature {
 	
 	@Override
 	public String toString() {
-		return String.format("MidiTimeSignature [numerator=%d, denominator=%d measure=%d]", numerator, denominator,
+		return String.format("MidiTimeSignature [numerator=%d, denominator=%d, measure=%d]", numerator, denominator,
 				measure);
 	}
 }

@@ -53,9 +53,9 @@ public class MMLSymbol {
 	private String octaveDown = "<";
 	
 	/**
-	 * MML text for end of track.
+	 * MML text for end of track. [OBSOLETED]
 	 */
-	private String trackEnd = ";";
+	//private String trackEnd = "#_ ;[REPLACE _ WITH CHANNEL NUMBER]";
 	
 	/**
 	 * MML text for triplet start.
@@ -88,9 +88,15 @@ public class MMLSymbol {
 	private String panMacro = "Y";
 	
 	/**
+	 * MML text for tick length.
+	 */
+	private String ticks = "=";
+	
+	/**
 	 * Construct a new MML symbol set.
 	 */
 	public MMLSymbol() {
+		super();
 	}
 	
 	/**
@@ -107,9 +113,13 @@ public class MMLSymbol {
 		instrument = obj.instrument;
 		octaveUp = obj.octaveUp;
 		octaveDown = obj.octaveDown;
-		trackEnd = obj.trackEnd;
+		//trackEnd = obj.trackEnd;
 		tripletStart = obj.tripletStart;
 		tripletEnd = obj.tripletEnd;
+		instrumentMacro = obj.instrumentMacro;
+		volumeMacro = obj.volumeMacro;
+		panMacro = obj.panMacro;
+		ticks = obj.ticks;
 	}
 	
 	public String getNote(int index) {
@@ -180,13 +190,13 @@ public class MMLSymbol {
 		this.octaveDown = octaveDown;
 	}
 	
-	public String getTrackEnd() {
+	/*public String getTrackEnd() {
 		return trackEnd;
-	}
+	}*/
 	
-	public void setTrackEnd(String trackEnd) {
+	/*public void setTrackEnd(String trackEnd) {
 		this.trackEnd = trackEnd;
-	}
+	}*/
 	
 	public String getTripletStart(int totalLength) {
 		return tripletStart;
@@ -251,4 +261,38 @@ public class MMLSymbol {
 	public void setVolume(String volume) {
 		this.volume = volume;
 	}
+	
+	public String getTicks() {
+		return ticks;
+	}
+	
+	public void setTicks(String ticks) {
+		this.ticks = ticks;
+	}
+	
+	public boolean isRest(String command) {
+		return command.startsWith(rest);
+	}
+	
+	public boolean isNote(String command) {
+		for(String note : notes) {
+			if(command.startsWith(note)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean isTie(String command) {
+		return command.startsWith(tie);
+	}
+	
+	public boolean isNoteOrTie(String command) {
+		return isNote(command) || isTie(command);
+	}
+	
+	public boolean isOctaveChange(String command) {
+		return command.matches("o[-]?\\d+") || command.matches("<+|>+");
+	}
+	
 }

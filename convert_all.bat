@@ -1,0 +1,1 @@
+java -jar PetiteMM.jar --no-quantize --put-spaces *.mid

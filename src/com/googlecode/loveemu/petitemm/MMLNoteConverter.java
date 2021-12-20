@@ -13,6 +13,11 @@ public class MMLNoteConverter {
 	public static final int KEY_REST = MMLNoteInfo.KEY_REST;
 	
 	/**
+	 * Constant number for ties.
+	 */
+	public static final int KEY_TIE = MMLNoteInfo.KEY_TIE;
+	
+	/**
 	 * Tick to MML note conversion table.
 	 */
 	private MMLNoteInfo[] notes;
@@ -43,12 +48,17 @@ public class MMLNoteConverter {
 	private MMLSymbol mmlSymbol;
 	
 	/**
+	 * True if MML tick notation should be used.
+	 */
+	private boolean useTicks;
+	
+	/**
 	 * Construct new MML note converter.
 	 * 
 	 * @param tpqn Tick per quarter note of MML.
 	 */
-	public MMLNoteConverter(MMLSymbol mmlSymbol, int tpqn) {
-		this(mmlSymbol, tpqn, -1);
+	public MMLNoteConverter(MMLSymbol mmlSymbol, int tpqn, boolean useTicks) {
+		this(mmlSymbol, tpqn, -1, useTicks);
 	}
 	
 	/**
@@ -57,8 +67,9 @@ public class MMLNoteConverter {
 	 * @param tpqn        Tick per quarter note of MML.
 	 * @param maxDotCount Maximum count of dots of dotted-note allowed.
 	 */
-	public MMLNoteConverter(MMLSymbol mmlSymbol, int tpqn, int maxDotCount) {
+	public MMLNoteConverter(MMLSymbol mmlSymbol, int tpqn, int maxDotCount, boolean useTicks) {
 		this.mmlSymbol = mmlSymbol;
+		this.useTicks = useTicks;
 		setTPQN(tpqn);
 		initNoteTable(tpqn, maxDotCount);
 	}
@@ -74,18 +85,25 @@ public class MMLNoteConverter {
 			throw new IllegalArgumentException("Note length is negative.");
 		}
 		
-		int len = length;
-		
 		StringBuilder sb = new StringBuilder();
-		while(len > (tpqn * 8)) {
-			sb.append(notes[tpqn * 8].getText());
-			sb.append(mmlSymbol.getTie());
-			len -= tpqn * 8;
-		}
-		sb.append(notes[len].getText());
 		
-		String note = sb.toString();
-		return note.replaceAll("\\^[abcdefgr][+-]?", "^");
+		if(useTicks) {
+			int ticks = Midi2MML.MML_TPQN * length / tpqn;
+			sb.append("$N");
+			sb.append(mmlSymbol.getTicks());
+			sb.append(ticks);
+			MMLNoteInfo note = new MMLNoteInfo(mmlSymbol, sb.toString());
+			return note.getText();
+		} else {
+			int len = length;
+			while(len > (tpqn * 8)) {
+				sb.append(notes[tpqn * 8].getText());
+				sb.append(mmlSymbol.getTie());
+				len -= tpqn * 8;
+			}
+			sb.append(notes[len].getText());
+			return sb.toString();
+		}
 	}
 	
 	/**
@@ -100,18 +118,25 @@ public class MMLNoteConverter {
 			throw new IllegalArgumentException("Note length must be a positive number.");
 		}
 		
-		int len = length;
-		
 		StringBuilder sb = new StringBuilder();
-		while(len > (tpqn * 8)) {
-			sb.append(notes[tpqn * 8].getText(key));
-			sb.append(mmlSymbol.getTie());
-			len -= tpqn * 8;
-		}
-		sb.append(notes[len].getText(key));
 		
-		String note = sb.toString();
-		return note.replaceAll("\\^[abcdefgr][+-]?", "^");
+		if(useTicks) {
+			int ticks = Midi2MML.MML_TPQN * length / tpqn;
+			sb.append("$N");
+			sb.append(mmlSymbol.getTicks());
+			sb.append(ticks);
+			MMLNoteInfo note = new MMLNoteInfo(mmlSymbol, sb.toString());
+			return note.getText(key);
+		} else {
+			int len = length;
+			while(len > (tpqn * 8)) {
+				sb.append(notes[tpqn * 8].getText(key));
+				sb.append(mmlSymbol.getTie());
+				len -= tpqn * 8;
+			}
+			sb.append(notes[len].getText(key));
+			return sb.toString();
+		}
 	}
 	
 	/**
@@ -276,7 +301,6 @@ public class MMLNoteConverter {
 				// c6. == c4, for example.
 				if(notes[tick] != null) {
 					break;
-					// continue;
 				}
 				
 				// create length table
@@ -358,10 +382,5 @@ public class MMLNoteConverter {
 			Collections.sort(lengths);
 			Collections.reverse(lengths);
 		}
-		
-		// for (tick = 1; tick < tpqn * 8; tick++)
-		// {
-		// System.out.println("" + tick + "\t" + notes[tick]);
-		// }
 	}
 }

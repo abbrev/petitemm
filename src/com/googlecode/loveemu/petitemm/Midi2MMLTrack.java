@@ -64,6 +64,12 @@ class Midi2MMLTrack {
 	private int currentVolume = 127;
 	private int currentVelocity = 127;
 	private int currentExpression = 127;
+	private int currentPan = 64;
+	
+	private boolean midNote = false;
+	
+	private int noteIndex = 0;
+	private int currentNoteIndex = 0;
 	
 	/**
 	 * Construct new MML track conversion object.
@@ -72,6 +78,35 @@ class Midi2MMLTrack {
 	 */
 	Midi2MMLTrack(MMLSymbol mmlSymbol) {
 		this.mmlSymbol = mmlSymbol;
+	}
+	
+	public int getNoteIndex() {
+		return noteIndex;
+	}
+	
+	public void setNoteIndex(int noteIndex) {
+		this.noteIndex = noteIndex;
+	}
+	
+	public int getCurrentNoteIndex() {
+		return currentNoteIndex;
+	}
+	
+	public void setCurrentNoteIndex(int currNoteIndex) {
+		this.currentNoteIndex = currNoteIndex;
+	}
+	
+	public void increaseNoteIndex() {
+		currentNoteIndex = noteIndex;
+		noteIndex++;
+	}
+	
+	public boolean getMidNote() {
+		return midNote;
+	}
+	
+	public void setMidNote(boolean midNote) {
+		this.midNote = midNote;
 	}
 	
 	/**
@@ -280,10 +315,18 @@ class Midi2MMLTrack {
 		this.currentExpression = currentExpression;
 	}
 	
+	public int getCurrentPan() {
+		return currentPan;
+	}
+	
+	public void setCurrentPan(int currentPan) {
+		this.currentPan = currentPan;
+	}
+	
 	/**
 	 * Appends the specified MML event.
 	 * 
-	 * @param str MML event.
+	 * @param event MML event.
 	 */
 	public void add(MMLEvent event) {
 		mmlEventList.add(event);
@@ -292,7 +335,7 @@ class Midi2MMLTrack {
 	/**
 	 * Appends the specified MML events.
 	 * 
-	 * @param str Collection of MML events.
+	 * @param events Collection of MML events.
 	 */
 	public void addAll(Collection<MMLEvent> events) {
 		mmlEventList.addAll(events);
@@ -314,28 +357,45 @@ class Midi2MMLTrack {
 	 */
 	void writeMML(StringBuilder writer) {
 		if(!mmlEventList.isEmpty()) {
+			this.trimIfEmpty();
+			
 			StringBuilder mmlBuffer = new StringBuilder();
 			
 			// Satanic way to solve ties issues with commands inside notes
-			boolean addTie = false;
 			boolean skip;
+			boolean skipNext = false;
 			for(int i = 0; i < mmlEventList.size(); i++) {
+				if(skipNext) {
+					skipNext = false;
+					continue;
+				}
 				skip = false;
 				MMLEvent event = mmlEventList.get(i);
-				if(addTie && event.getCommand().matches("[abcdefgr][+-]?[\\d]*[\\.]*")) {
-					mmlBuffer.append(mmlSymbol.getTie());
-					addTie = false;
-					mmlBuffer.append(event.toString().replaceAll("[abcdefgr][+-]?", ""));
-					skip = true;
-				} else if(event.getCommand().equals(mmlSymbol.getTie())) {
-					// Check if we have a tie followed by a non-note command
-					// If yes, skip it and add it after the command
-					addTie = checkIfNonNoteNext(i);
-					skip = addTie;
-				} else if(event.getCommand().equals(mmlSymbol.getVolumeMacro())) {
-					// Optimize consecutive volume commands
-					skip = checkIfVolumeNext(i);
+				String command = event.getCommand();
+				
+				/*
+				if(command.equals(mmlSymbol.getTie())) {
+					// Check if we have a tie followed by a note command
+					// If yes, remove the note name and skip it
+					if(i < mmlEventList.size() - 1) {
+						String nextCommand = mmlEventList.get(i+1).getCommand();
+						if(mmlSymbol.isNoteOrRest(nextCommand)) {
+							mmlBuffer.append(event.getCommand());
+							mmlBuffer.append(nextCommand.replaceAll("[abcdefgr][+-]?", ""));
+							skip = true;
+							skipNext = true;
+						} else if(nextCommand.equals(mmlSymbol.getOctaveDown())
+								|| nextCommand.equals(mmlSymbol.getOctaveUp())) {
+							skip = true;
+						}
+					}
+				} else */
+				if(command.equals(mmlSymbol.getVolumeMacro()) ||
+						command.equals(mmlSymbol.getPanMacro()) ||
+						command.equals(mmlSymbol.getInstrumentMacro())) {
+					skip = checkIfCommandNext(command, i);
 				}
+				
 				if(!skip) {
 					// If not set to skip the current event, write it.
 					mmlBuffer.append(event.toString());
@@ -346,7 +406,6 @@ class Midi2MMLTrack {
 			if(useTriplet) {
 				mmlString = convertToTriplet(mmlString);
 			}
-			
 			writer.append(mmlString);
 			
 			if(!mmlString.endsWith(System.getProperty("line.separator"))) {
@@ -355,15 +414,15 @@ class Midi2MMLTrack {
 		}
 	}
 	
-	private boolean checkIfVolumeNext(int i) {
-		for(int j = i + 1; j < mmlEventList.size(); j++) {
-			String command = mmlEventList.get(j).getCommand();
-			if(!command.equals(" ")) {
-				if(command.equals(mmlSymbol.getVolumeMacro())) {
-					// If there's another volume command, we don't need to write the current one
+	private boolean checkIfCommandNext(String command, int index) {
+		for(int j = index + 1; j < mmlEventList.size(); j++) {
+			String other = mmlEventList.get(j).getCommand();
+			if(!other.equals(" ")) {
+				if(other.equals(command)) {
+					// If there's another command of the same type, we don't need to write the current one.
 					return true;
-				} else if(command.matches("(o\\d+)|([<>]+)|([abcdefg\\^][+-]?\\d*\\.*)(\\^\\d*\\.*)*")) {
-					// If there's a note (non-rest) next, we have to write the volume command
+				} else if(mmlSymbol.isNoteOrTie(other) || mmlSymbol.isOctaveChange(other)) {
+					// If there's a note next, we have to write the volume command.
 					return false;
 				}
 			}
@@ -371,14 +430,34 @@ class Midi2MMLTrack {
 		return false;
 	}
 	
-	private boolean checkIfNonNoteNext(int i) {
-		for(int j = i + 1; j < mmlEventList.size(); j++) {
-			String command = mmlEventList.get(j).getCommand();
-			if(!command.equals(" ")) {
-				return !command.matches("[abcdefgr][+-]?[\\d]*[\\.]*");
+	private void trimIfEmpty() {
+		boolean beginning = true;
+		boolean empty = true;
+		MMLEvent keepThis = new MMLEvent("");
+		for(MMLEvent event : mmlEventList) {
+			String command = event.getCommand();
+			if(beginning) {
+				if(command.equals(mmlSymbol.getTempo())) {
+					keepThis = event;
+				} else if(!command.equals(" ") && !command.equals("\n")) {
+					if(mmlSymbol.isNote(command)) {
+						empty = false;
+						break;
+					}
+					beginning = false;
+				}
+			} else {
+				if(mmlSymbol.isNote(command) || command.equals(mmlSymbol.getTempo())
+						|| command.equals(mmlSymbol.getOctave())) {
+					empty = false;
+					break;
+				}
 			}
 		}
-		return false;
+		if(empty) {
+			mmlEventList.clear();
+			mmlEventList.add(keepThis);
+		}
 	}
 	
 	/**
@@ -390,7 +469,7 @@ class Midi2MMLTrack {
 			int noteLenTo = 1 << i;
 			int noteLenFrom = noteLenTo * 3;
 			converted = converted.replaceAll(
-					REGEX1 + noteLenFrom + REGEX2 + noteLenFrom + "(\\s*[<>]*[abcdefgr\\^][\\+\\-]*)" + noteLenFrom,
+					REGEX1 + noteLenFrom + REGEX2 + noteLenFrom + REGEX2 + noteLenFrom,
 					"\\" + mmlSymbol.getTripletStart(noteLenTo) + "$1"
 							+ (mmlSymbol.shouldTripletHaveLengthInBracket() ? "\\" + noteLenTo : "") + "$2"
 							+ (mmlSymbol.shouldTripletHaveLengthInBracket() ? "\\" + noteLenTo : "") + "$3"
