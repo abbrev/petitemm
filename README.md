@@ -20,6 +20,8 @@ With the current update, the best way to execute this code is to download the pr
 |------------------|----------------------------------------------------------------------------------------------------------|
 |--simple-output   |Returns an AMK-compatible MML file containing only the raw note data for each channel                     |
 |--complex-output  |Returns an AMK-compatible MML file containing note data, panning values, instrument id's, and volume data |
+|
+
 Note that --complex-output will output a much larger MML file, and ideally should be optimized before being used.
 
 As an example, to run simple-output on a MIDI file Test1, you would type `java PetiteMM --simple-output Test1.mid` into the command line. The same format goes for complex output as well.
