@@ -14,9 +14,7 @@ Features:
 How To Use
 ----------
 ### Easy Setup
-With the current update, the best way to execute this code is to download the .zip containing all the Java
-files and run it in the command line. If you just want to output an MML file without thinking about any of
-the commands below, then use one of these two options:
+With the current update, the best way to execute this code is to download the project as a .zip and run PetiteMM.java in the command line. If you just want to output an MML file without thinking about any of the commands below, then use one of these two options:
 
 |Option            |Description                                                                                               |
 |------------------|----------------------------------------------------------------------------------------------------------|
