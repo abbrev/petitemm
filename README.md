@@ -40,22 +40,17 @@ You can run PetiteMM manually with `java -jar PetiteMM.jar (options) input.mid [
 |-o                   |[string]filename |Specify the output MML filename.                                                  |
 |--put-spaces         |n/a              |Put spaces between each note and command for readability.                         |
 |--dots               |[int]count       |Maximum dot counts allowed for dotted-note, -1 for infinity. (default=-1)         |
-|--timebase           |[int]TPQN        |Timebase of target MML, 0 to keep the input timebase. (default=0)                |
+|--timebase           |[int]TPQN        |Timebase of target MML, 0 to keep the input timebase. (default=0)                 |
 |--input-timebase     |[int]TPQN        |Timebase of input sequence, 0 to keep the input timebase. (default=0)             |
 |--quantize-precision |[int]length      |Specify the minimum note length for quantization. (example: 64 for 64th note)     |
 |--no-quantize        |n/a              |Prevent adjusting note length. Result will be more accurate but more complicated. |
-|--octave-reverse     |n/a              |Swap the octave symbol. (not recommended)                                                          |
+|--octave-reverse     |n/a              |Swap the octave symbol. (not recommended)                                         |
 |--use-triplet        |n/a              |Use triplet syntax if possible. (really not so smart)                             |
-|--no-control-changes |n/a              |Ignore control change messages (instrument, volume, panning).
-|
-|--no-expression      |n/a              |Ignore Expression messages (Control Change message 11) for volume computation.
-|
-|--multiply-volumes   |[float]factor    |Multiply all output volumes by a constant factor.
-|
-|--no-pan-correction  |n/a              |Don't adjust the volume values based on the panning values, which is done to account for the fact that AMK's volumes get louder for pannings farther from the center.
-|
-|--use-ticks          |n/a              |Convert note lengths to MML tick notation.
-|
+|--no-control-changes |n/a              |Ignore control change messages (instrument, volume, panning).                     |
+|--no-expression      |n/a              |Ignore Expression messages (Control Change message 11) for volume computation.    |
+|--multiply-volumes   |[float]factor    |Multiply all output volumes by a constant factor.                                 |
+|--no-pan-correction  |n/a              |Don't adjust the volume values based on the panning values, which is done to account for the fact that AMK's volumes get louder for pannings farther from the center.                                                                                          |
+|--use-ticks          |n/a              |Convert note lengths to MML tick notation.                                        |
 
 Special Thanks
 --------------
