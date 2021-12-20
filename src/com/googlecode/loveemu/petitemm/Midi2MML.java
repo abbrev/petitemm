@@ -104,6 +104,11 @@ public class Midi2MML {
 	private boolean simpleSetup = false;
 
 	/**
+	 * true if complex output selected.
+	 */
+	private boolean complexSetup = false;
+
+	/**
 	 * true if adjust note length for simplifying the conversion result.
 	 */
 	private boolean quantizationEnabled = true;
@@ -212,6 +217,7 @@ public class Midi2MML {
 		this.mmlSymbol = new MMLSymbol(obj.mmlSymbol);
 		this.maxDots = obj.maxDots;
 		this.simpleSetup = obj.simpleSetup;
+		this.complexSetup = obj.complexSetup;
 		this.quantizationEnabled = obj.quantizationEnabled;
 		this.octaveReversed = obj.octaveReversed;
 		this.useTriplet = obj.useTriplet;
@@ -282,7 +288,16 @@ public class Midi2MML {
 	 */
 	public void setSimpleSetup(boolean simpleSetup) {
 		this.simpleSetup = simpleSetup;
-		System.out.println("Simpleness set!");
+	}
+
+	/**
+	 * Set whether to add the starting text for complex output.
+	 *
+	 * @param complexSetup
+	 *            true if simple output option selected.
+	 */
+	public void setComplexSetup(boolean complexSetup) {
+		this.complexSetup = complexSetup;
 	}
 
 	/**
@@ -416,6 +431,10 @@ public class Midi2MML {
 
 	public boolean getSimpleSetup() {
 		return simpleSetup;
+	}
+
+	public boolean getComplexSetup() {
+		return complexSetup;
 	}
 
 	public boolean getNoControlChanges() {
@@ -603,21 +622,15 @@ public class Midi2MML {
 		}
 
 		boolean firstTrackWrite = true;
-		System.out.println("Final check: " + simpleSetup);
-		if(simpleSetup) {
-			writer.append("#amk 2\n#0\n");
-			System.out.println("appended!");
-		}
+
 		for (int i = 0; i < mmlTracks.length; i++) {
 			if (!mmlTracks[i].isEmpty()) {
-				if (firstTrackWrite) {
-					firstTrackWrite = false;
-				} else {
-					writer.append(LINE_SEPARATOR);
-					writer.append("#" + i);
-					writer.append(LINE_SEPARATOR);
-				}
-				System.out.println(getSimpleSetup());
+				if (firstTrackWrite) firstTrackWrite = false;
+
+				writer.append(LINE_SEPARATOR);
+				writer.append("#" + i);
+				writer.append(LINE_SEPARATOR);
+
 				mmlTracks[i].writeMML(writer);
 			}
 		}
@@ -788,13 +801,19 @@ public class Midi2MML {
 
 	public StringBuilder writeMacros() {
 		StringBuilder sb = new StringBuilder();
-		
+		sb.append("#amk 2" + LINE_SEPARATOR);
 		if(getNoControlChanges()) {
 			return sb;
 		}
-		
-		sb.append("; Instrument macros" + LINE_SEPARATOR);
+
+
 		int i = 30;
+		sb.append(LINE_SEPARATOR + "#instruments {" + LINE_SEPARATOR);
+		for (int instr : instruments) {
+			sb.append("@0 $FF $E0 $00 $06 $00" + LINE_SEPARATOR);
+		}
+		sb.append("}" + LINE_SEPARATOR);
+		sb.append(LINE_SEPARATOR + "; Instrument macros" + LINE_SEPARATOR);
 		for (int instr : instruments) {
 			String macro = String.format("\"I%02X = %s%d\"%s", instr, mmlSymbol.getInstrument(), i++, LINE_SEPARATOR);
 			sb.append(macro);

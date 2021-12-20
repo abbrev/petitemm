@@ -72,9 +72,12 @@ public class PetiteMM {
 			switch(args[argi]) {
 			case "--simple-output":
 				opt.setSimpleSetup(true);
-				System.out.println(opt.getSimpleSetup());
 				opt.setPutSpaces(true);
 				opt.setNoControlChanges(true);
+				break;
+			case "--complex-output":
+				opt.setComplexSetup(true);
+				opt.setPutSpaces(true);
 				break;
 			case "-o":
 				checkArgumentCount(args, argi);
