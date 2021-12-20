@@ -13,6 +13,20 @@ Features:
 
 How To Use
 ----------
+### Easy Setup
+With the current update, the best way to execute this code is to download the .zip containing all the Java
+files and run it in the command line. If you just want to output an MML file without thinking about any of
+the commands below, then use one of these two options:
+
+|Option            |Description                                                                                               |
+|------------------|----------------------------------------------------------------------------------------------------------|
+|--simple-output   |Returns an AMK-compatible MML file containing only the raw note data for each channel                     |
+|--complex-output  |Returns an AMK-compatible MML file containing note data, panning values, instrument id's, and volume data |
+Note that --complex-output will output a much larger MML file, and ideally should be optimized before being used.
+
+As an example, to run simple-output on a MIDI file Test1, you would type `java PetiteMM --simple-output Test1.mid` into the command line. The same format goes for complex output as well.
+
+The rest of the How to Use section is unchanged from the old version of PetiteMM, with some slight additions for the remaining options.
 
 1. Install [Java](http://java.com/download/) Runtime Environment (if you do not have yet)
 2. Drag and drop .mid files into PetiteMM.bat, and .mml files will be saved in the input directory
@@ -24,8 +38,9 @@ You can run PetiteMM manually with `java -jar PetiteMM.jar (options) input.mid [
 |Option               |Arguments        |Description                                                                       |
 |---------------------|-----------------|----------------------------------------------------------------------------------|
 |-o                   |[string]filename |Specify the output MML filename.                                                  |
+|--put-spaces         |n/a              |Put spaces between each note and command for readability.                         |
 |--dots               |[int]count       |Maximum dot counts allowed for dotted-note, -1 for infinity. (default=-1)         |
-|--timebase           |[int]TPQN        |Timebase of target MML, 0 to keep the input timebase. (default=48)                |
+|--timebase           |[int]TPQN        |Timebase of target MML, 0 to keep the input timebase. (default=0)                |
 |--input-timebase     |[int]TPQN        |Timebase of input sequence, 0 to keep the input timebase. (default=0)             |
 |--quantize-precision |[int]length      |Specify the minimum note length for quantization. (example: 64 for 64th note)     |
 |--no-quantize        |n/a              |Prevent adjusting note length. Result will be more accurate but more complicated. |
