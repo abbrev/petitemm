@@ -62,9 +62,9 @@ public class Midi2MML {
 	public static final int DEFAULT_MAX_DOT_COUNT = -1;
 
 	/**
-	 * Default middle octave.
+	 * Default octave offset.
 	 */
-	public final static int DEFAULT_MIDDLE_OCTAVE = 4;
+	public final static int DEFAULT_OCTAVE_OFFSET = 0;
 
 	public static final String LINE_SEPARATOR = System.getProperty("line.separator");
 	
@@ -104,9 +104,9 @@ public class Midi2MML {
 	private int maxDots = DEFAULT_MAX_DOT_COUNT;
 
 	/**
-	 * Middle octave.
+	 * Octave offset.
 	 */
-	private int middleOctave = DEFAULT_MIDDLE_OCTAVE;
+	private int octaveOffset = DEFAULT_OCTAVE_OFFSET;
 
 	/**
 	 * true if simple output selected.
@@ -226,7 +226,7 @@ public class Midi2MML {
 	public Midi2MML(Midi2MML obj) {
 		this.mmlSymbol = new MMLSymbol(obj.mmlSymbol);
 		this.maxDots = obj.maxDots;
-		this.middleOctave = obj.middleOctave;
+		this.octaveOffset = obj.octaveOffset;
 		this.simpleSetup = obj.simpleSetup;
 		this.complexSetup = obj.complexSetup;
 		this.quantizationEnabled = obj.quantizationEnabled;
@@ -283,21 +283,19 @@ public class Midi2MML {
 	}
 
 	/**
-	 * Get the middle octave.
-	 * @return Middle octave.
+	 * Get the octave offset.
+	 * @return Octave offset.
 	 */
-	public int getMiddleOctave() {
-		return middleOctave;
+	public int getOctaveOffset() {
+		return octaveOffset;
 	}
 
 	/**
-	 * Set the middle octave.
-	 * @param mmlMiddleOctave Middle octave.
+	 * Set the octave offset.
+	 * @param mmlOctaveOffset Octave offset.
 	 */
-	public void setMiddleOctave(int mmlMiddleOctave) {
-		if (mmlMiddleOctave < 0)
-			throw new IllegalArgumentException("Middle octave must be a positive number.");
-		this.middleOctave = mmlMiddleOctave;
+	public void setOctaveOffset(int mmlOctaveOffset) {
+		this.octaveOffset = mmlOctaveOffset;
 	}
 
 	/**
@@ -692,7 +690,7 @@ public class Midi2MML {
 	private void handleNote(MMLNoteConverter noteConv, Midi2MMLTrack mmlTrack, long mmlLastTick,
 			int mmlLastNoteNumber, Sequence seq, List<MidiTimeSignature> timeSignatures, long tick) {
 		int mmlOctave = mmlTrack.getOctave();
-		int noteOctave = mmlLastNoteNumber / 12 + 3 - middleOctave;
+		int noteOctave = mmlLastNoteNumber / 12 - 1 + octaveOffset;
 
 		while (mmlOctave < noteOctave) {
 			mmlTrack.add(new MMLEvent(
@@ -774,7 +772,7 @@ public class Midi2MML {
 	private void handleNoteOnMessage(Track track, Midi2MMLTrack mmlTrack, List<MMLEvent> mmlEvents,
 			ShortMessage message, long tick) {
 		int noteNumber = message.getData1();
-		int noteOctave = noteNumber / 12 + 3 - middleOctave;
+		int noteOctave = noteNumber / 12 - 1 + octaveOffset;
 		
 		mmlTrack.setMidNote(false);
 

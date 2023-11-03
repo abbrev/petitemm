@@ -39,7 +39,7 @@ You can run PetiteMM manually with `java -jar PetiteMM.jar (options) input.mid [
 |-o                   |[string]filename |Specify the output MML filename.                                                  |
 |--put-spaces         |n/a              |Put spaces between each note and command for readability.                         |
 |--dots               |[int]count       |Maximum dot counts allowed for dotted-note, -1 for infinity. (default=-1)         |
-|--middle-octave      |[int]octave      |Middle octave where A440 is found. (default=4)                                    |
+|--octave-offset      |[int]offset      |Octave offset. (default=0)                                                        |
 |--timebase           |[int]TPQN        |Timebase of target MML, 0 to keep the input timebase. (default=0)                 |
 |--input-timebase     |[int]TPQN        |Timebase of input sequence, 0 to keep the input timebase. (default=0)             |
 |--quantize-precision |[int]length      |Specify the minimum note length for quantization. (example: 64 for 64th note)     |

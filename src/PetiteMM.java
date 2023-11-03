@@ -18,7 +18,7 @@ public class PetiteMM {
 	private static final String[] argsAvail = {
 			"-o", "<filename>", "Specify the output MML filename. It can only be used with a single input midi file.",
 			"--dots", "<count>", "Maximum dot counts allowed for dotted-note, -1 for infinity. (default=" + Midi2MML.DEFAULT_MAX_DOT_COUNT + ")",
-			"--middle-octave", "<octave>", "Middle octave where A440 is found. (default=" + Midi2MML.DEFAULT_MIDDLE_OCTAVE + ")",
+			"--octave-offset", "<offset>", "Octave offset. (default=" + Midi2MML.DEFAULT_OCTAVE_OFFSET + ")",
 			"--timebase", "<TPQN>", "Timebase of target MML, " + Midi2MML.RESOLUTION_AS_IS + " to keep the input timebase. (default=" + Midi2MML.DEFAULT_RESOLUTION + ")",
 			"--input-timebase", "<TPQN>", "Timebase of input sequence, " + Midi2MML.RESOLUTION_AS_IS + " to keep the input timebase. (default=" + Midi2MML.RESOLUTION_AS_IS + ")",
 			"--quantize-precision", "<length>", "Specify the minimum note length for quantization.",
@@ -88,9 +88,9 @@ public class PetiteMM {
 				checkArgumentCount(args, argi);
 				opt.setMaxDots(Integer.parseInt(args[++argi]));
 				break;
-			case "--middle-octave":
+			case "--octave-offset":
 				checkArgumentCount(args, argi);
-				opt.setMiddleOctave(Integer.parseInt(args[++argi]));
+				opt.setOctaveOffset(Integer.parseInt(args[++argi]));
 				break;
 			case "--timebase":
 				checkArgumentCount(args, argi);
